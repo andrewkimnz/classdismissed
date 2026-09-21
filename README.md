@@ -121,6 +121,15 @@ Unique partial indexes enforce the live-event edge cases in the database itself:
 
 ## Supabase setup (production)
 
+> **Shortcut: one command.** After you've created the Supabase project (step 1 below) and have the connection string
+> and keys to hand, run `npm run setup:production`. It asks for them (input is hidden), checks them for the classic
+> mistakes (a *secret* key pasted into the public slot, a connection string from a different project, the direct
+> connection instead of the pooler), builds the tables, loads the blank event setup, creates your admin login,
+> checks the photo bucket, and writes `.env.production.local`: the exact settings to paste into Vercel
+> (`pbcopy < .env.production.local`, then paste into Vercel's Environment Variables). It's safe to re-run: it never
+> wipes students or scores that already exist, and it keeps your session secret. Delete the file once Vercel has it.
+> The numbered steps below are the same thing done by hand.
+
 1. **Create a project** at supabase.com (choose a region near Auckland: Sydney).
 2. **Database connection string**: *Project Settings → Database → Connection string → Transaction pooler*
    (port `6543`). Copy the URI and put your database password in it → this is `DATABASE_URL`.
@@ -204,6 +213,12 @@ detention individually.
 **Finale**: *Leaderboard* (exact numbers, staff-only) → announce winners → *Event control → Event Complete*.
 Every student's Home becomes the keepsake. *Final stats* has all the special awards and lets you override any
 student's award. Upload class/team photos on each class page and a final photo per student (optional).
+
+### Can't sign in to the staff room?
+Run `npm run admin:reset`. It asks for your Supabase connection string (and database password), then **lists the admin
+accounts that exist (emails only)**, so you can see which email you actually created, and lets you set a new password for
+one of them (or create an account). Every prompt is hidden and no event data is touched. It only needs the database
+connection, never the API keys.
 
 ### Staff accounts
 `npm run admin:create -- email password "Name" admin|teacher` (also creates or resets). In the app:

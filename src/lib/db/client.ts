@@ -47,20 +47,55 @@ function wrap(backend: Backend): Db {
 async function postgresBackend(url: string): Promise<Backend> {
   const { default: postgres } = await import("postgres");
   const isLocal = /@(localhost|127\.0\.0\.1|\[::1\])[:/]/.test(url);
-  const pg = postgres(url, {
-    // Supabase's transaction pooler (pgbouncer) has no prepared statements.
-    prepare: false,
-    max: 5,
-    idle_timeout: 20,
-    connect_timeout: 15,
-    ssl: isLocal ? false : "require",
-    onnotice: () => {},
-  });
+  const open = () =>
+    postgres(url, {
+      // Supabase's transaction pooler (pgbouncer) has no prepared statements.
+      prepare: false,
+      max: 5,
+      idle_timeout: 20,
+      max_lifetime: 60 * 10,
+      connect_timeout: 15,
+      ssl: isLocal ? false : "require",
+      onnotice: () => {},
+    });
+  let pg = open();
+
+  // A serverless instance that was frozen between requests can wake up holding a connection the pooler
+  // already closed. Without a limit the first query then waits for minutes. So: cap every query, and when
+  // one hangs, throw the pool away. Reads are retried once on a fresh pool; writes are never retried
+  // (we can't know whether they landed), they fail fast so the person just taps again.
+  const reset = () => {
+    const old = pg;
+    pg = open();
+    void old.end({ timeout: 0 }).catch(() => {});
+  };
+  const guarded = async <T>(run: (p: ReturnType<typeof open>) => Promise<T>, retry: boolean, limitMs = 8000): Promise<T> => {
+    for (let attempt = 0; ; attempt++) {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        return await Promise.race([
+          run(pg),
+          new Promise<never>((_, rej) => {
+            timer = setTimeout(() => rej(new Error("DB_TIMEOUT")), limitMs);
+          }),
+        ]);
+      } catch (e) {
+        if (!(e instanceof Error) || e.message !== "DB_TIMEOUT") throw e;
+        reset();
+        if (!retry || attempt > 0) throw new Error("The database took too long to answer. Please try again.");
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+  };
+  const isRead = (text: string) => /^\s*(select|with)\b/i.test(text) && !/\b(insert|update|delete)\b/i.test(text);
+
   return {
     kind: "postgres",
-    query: async (text, params) => [...(await pg.unsafe(text, params as never[]))] as Row[],
+    query: (text, params) => guarded(async (p) => [...(await p.unsafe(text, params as never[]))] as Row[], isRead(text)),
     tx: (fn) =>
-      pg.begin(async (t) => fn(async (text, params) => [...(await t.unsafe(text, params as never[]))] as Row[])) as never,
+      guarded((p) => p.begin(async (t) => fn(async (text, params) => [...(await t.unsafe(text, params as never[]))] as Row[])) as never, false, 20000),
+    // exec runs whole migration files and seeds: no cap.
     exec: async (text) => {
       await pg.unsafe(text);
     },
