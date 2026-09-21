@@ -12,6 +12,7 @@
     "db:migrate": "tsx scripts/db-migrate.ts",
     "db:seed": "tsx scripts/db-seed.ts",
     "db:reset": "tsx scripts/db-seed.ts --reset",
+    "doctor": "tsx scripts/doctor.ts",
     "admin:create": "tsx scripts/admin-create.ts",
     "setup:production": "tsx scripts/setup-production.ts",
     "admin:reset": "tsx scripts/admin-reset.ts"

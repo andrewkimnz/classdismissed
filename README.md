@@ -220,6 +220,13 @@ accounts that exist (emails only)**, so you can see which email you actually cre
 one of them (or create an account). Every prompt is hidden and no event data is touched. It only needs the database
 connection, never the API keys.
 
+### A page won't load, or crashes after signing in?
+Run `npm run doctor`. It reads `.env.production.local` (the settings file the setup command wrote), then runs what the admin
+page and sign-in do against your real database and says which step fails and why: settings, connection, admin accounts,
+tables, event data, sign-in cookie, and (optionally) your password. Nothing is typed except the optional password, which is
+hidden, and error text has every secret removed before it's shown. If a page crashes, the screen offers **Try again** and
+**Sign out**, so a crash never locks anyone out of the staff room.
+
 ### Staff accounts
 `npm run admin:create -- email password "Name" admin|teacher` (also creates or resets). In the app:
 *Staff accounts* to add game masters, change roles, deactivate accounts, and change your own password.
