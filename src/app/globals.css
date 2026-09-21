@@ -1,0 +1,239 @@
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   KAC Academy design tokens.
+   Notebook paper + navy ink + sakura pink + teacher-pen red. Phase colours are
+   swapped by data-phase on the app shell so it's ONE product in three moods.
+   ───────────────────────────────────────────────────────────────────────────── */
+:root {
+  --paper: #fffaf0;
+  --paper-2: #fff1dc;
+  --card: #ffffff;
+  --ink: #1e2a4a;
+  --ink-soft: #5a6685;
+  --line: #e6d9bf;
+  --sakura: #f7a8c0;
+  --sakura-deep: #e8628c;
+  --pen: #d8392f;
+  --sun: #ffd54a;
+  --mint: #6fcf97;
+  --sky: #a9cfff;
+  --navy: #1f2a5a;
+  --dragon: #f2b619; /* the KAC dragon's yellow, sampled from public/kac-dragon.png */
+
+  --accent: #3f7ce0;
+  --accent-ink: #ffffff;
+  --accent-soft: #dcebff;
+  --hero-a: #8ec5ff;
+  --hero-b: #dcebff;
+}
+[data-phase="after_school"] {
+  --accent: #ee4f86;
+  --accent-soft: #ffe0ea;
+  --hero-a: #ff9e7d;
+  --hero-b: #ffd6e2;
+}
+[data-phase="event_complete"] {
+  --accent: #d99a0b;
+  --accent-soft: #fff0c2;
+  --hero-a: #3c4a8c;
+  --hero-b: #d9d4ff;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-line: var(--line);
+  --color-sakura: var(--sakura);
+  --color-sakura-deep: var(--sakura-deep);
+  --color-pen: var(--pen);
+  --color-sun: var(--sun);
+  --color-mint: var(--mint);
+  --color-sky: var(--sky);
+  --color-navy: var(--navy);
+  --color-dragon: var(--dragon);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --font-display: var(--font-jua), "Jua", system-ui, sans-serif;
+  --font-sans: var(--font-nunito), "Nunito", system-ui, sans-serif;
+  --font-hand: var(--font-caveat), "Caveat", cursive;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.45;
+  overflow-x: hidden;
+}
+button, a, input, select, textarea { touch-action: manipulation; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* The app column: phone-first, centred on big screens. */
+.app-bg {
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--hero-b) 70%, transparent) 0, transparent 34%),
+    linear-gradient(180deg, var(--hero-b) 0, var(--paper) 340px);
+}
+
+/* ── Paper & sticker primitives ───────────────────────────────────────────── */
+.card {
+  background: var(--card);
+  border: 2px solid var(--ink);
+  border-radius: 20px;
+  box-shadow: 0 4px 0 var(--ink);
+}
+.card-soft {
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: 18px;
+}
+.lined {
+  background-color: #fffdf7;
+  background-image:
+    linear-gradient(90deg, transparent 31px, rgba(232, 98, 140, 0.35) 31px 33px, transparent 33px),
+    repeating-linear-gradient(transparent 0 26px, rgba(63, 124, 224, 0.16) 26px 27px);
+}
+.grid-paper {
+  background-image:
+    linear-gradient(rgba(63, 124, 224, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(63, 124, 224, 0.1) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+.stamp {
+  display: inline-block;
+  border: 3px solid currentColor;
+  border-radius: 8px;
+  padding: 2px 10px;
+  font-family: var(--font-display);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transform: rotate(-6deg);
+  opacity: 0.92;
+  mix-blend-mode: multiply;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, currentColor 22%, transparent);
+}
+.tape {
+  position: absolute;
+  width: 54px;
+  height: 18px;
+  background: rgba(255, 213, 74, 0.7);
+  border-left: 2px dotted rgba(0, 0, 0, 0.12);
+  border-right: 2px dotted rgba(0, 0, 0, 0.12);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+/* The yellow "ACADEMY": dragon yellow with the same dark outline the mascot has, so it stays readable on light backgrounds. */
+.text-dragon-outline {
+  color: var(--dragon);
+  -webkit-text-stroke: 0.17em var(--ink);
+  paint-order: stroke fill;
+}
+.hand { font-family: var(--font-hand); font-weight: 700; }
+.display { font-family: var(--font-display); font-weight: 400; letter-spacing: 0.01em; }
+.label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* ── Buttons ──────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 20px;
+  border-radius: 16px;
+  border: 2px solid var(--ink);
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 4px 0 var(--ink);
+  transition: transform 80ms ease, box-shadow 80ms ease, background 120ms;
+  user-select: none;
+  text-align: center;
+}
+.btn:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary { background: var(--accent); color: var(--accent-ink); }
+.btn-sun { background: var(--sun); }
+.btn-ink { background: var(--ink); color: #fff; box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35); }
+.btn-danger { background: var(--pen); color: #fff; }
+.btn-good { background: var(--mint); }
+.btn-ghost { box-shadow: none; border-color: var(--line); background: transparent; }
+.btn-ghost:active:not(:disabled) { transform: none; background: var(--paper-2); }
+.btn-sm { min-height: 38px; padding: 0 12px; font-size: 15px; border-radius: 12px; box-shadow: 0 3px 0 var(--ink); }
+.btn-lg { min-height: 60px; font-size: 22px; border-radius: 20px; }
+
+/* ── Form fields ──────────────────────────────────────────────────────────── */
+.field {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 2px solid var(--ink);
+  background: #fff;
+  font-size: 16px; /* 16px stops iOS zooming on focus */
+  color: var(--ink);
+}
+.field::placeholder { color: #9aa3bd; }
+textarea.field { min-height: 88px; resize: vertical; }
+
+/* ── Motion ───────────────────────────────────────────────────────────────── */
+@keyframes bell-swing { 0%, 100% { transform: rotate(0); } 15% { transform: rotate(18deg); } 30% { transform: rotate(-16deg); } 45% { transform: rotate(12deg); } 60% { transform: rotate(-9deg); } 75% { transform: rotate(5deg); } }
+@keyframes pop-in { 0% { transform: scale(0.6) rotate(-4deg); opacity: 0; } 70% { transform: scale(1.06) rotate(1deg); opacity: 1; } 100% { transform: scale(1) rotate(0); } }
+@keyframes fade-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes petal-fall { 0% { transform: translate3d(0, -10vh, 0) rotate(0deg); opacity: 0; } 10% { opacity: 0.9; } 100% { transform: translate3d(var(--drift, 40px), 110vh, 0) rotate(540deg); opacity: 0.7; } }
+@keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); } 70% { box-shadow: 0 0 0 12px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+@keyframes stripes { to { background-position: 40px 0; } }
+@keyframes shine { from { transform: translateX(-120%) skewX(-18deg); } to { transform: translateX(260%) skewX(-18deg); } }
+
+.anim-bell { animation: bell-swing 1.6s ease-in-out infinite; transform-origin: 50% 8%; }
+.anim-pop { animation: pop-in 520ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+.anim-up { animation: fade-up 400ms ease both; }
+.pulse-ring { animation: pulse-ring 1.8s ease-out infinite; }
+.stripes-red {
+  background-image: repeating-linear-gradient(-45deg, #d8392f 0 14px, #1e2a4a 14px 28px);
+  background-size: 40px 40px;
+  animation: stripes 1.4s linear infinite;
+}
+.shine::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  animation: shine 3.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+}
+
+/* Safe-area padding for the bottom nav on notched phones */
+.pb-safe { padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+
+/* Printable login cards */
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff !important; }
+  .print-page { break-inside: avoid; }
+}
