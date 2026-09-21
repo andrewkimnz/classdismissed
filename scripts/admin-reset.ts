@@ -43,7 +43,7 @@ async function main() {
 
     let password = "";
     for (let i = 0; i < 5 && !password; i++) {
-      const pw = await askChecked("3/3  New password, 10+ characters (hidden): ", checkAdminPassword, { secret: true });
+      const pw = await askChecked("3/3  New password (hidden): ", checkAdminPassword, { secret: true });
       if ((await ask("     Type it again to confirm (hidden): ")) === pw) password = pw;
       else console.log("  ✗ Those didn't match. Try again.\n");
     }

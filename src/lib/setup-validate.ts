@@ -85,7 +85,7 @@ export function checkEmail(input: string): Check {
 }
 
 export function checkAdminPassword(pw: string): Check {
-  if (pw.length < 10) return bad("Use at least 10 characters.");
+  if (pw.length < 1) return bad("Enter a password.");
   if (/^(password|1234567890|qwertyuiop)/i.test(pw)) return bad("That's too easy to guess.");
   return { ok: true, value: pw };
 }

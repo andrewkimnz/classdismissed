@@ -31,7 +31,7 @@ export function StaffAdmin({ staff, meId }: { staff: Staff[]; meId: number }) {
           <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); act(() => createAdmin(f), { onOk: () => setF({ name: "", email: "", password: "", role: "teacher" }) }); }}>
             <Field label="Name"><input className="field" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} required /></Field>
             <Field label="Email"><input className="field" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} required autoComplete="off" /></Field>
-            <Field label="Temporary password" hint="At least 10 characters. Tell them to change it."><input className="field" type="text" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} required minLength={10} autoComplete="off" /></Field>
+            <Field label="Temporary password" hint="Tell them to change it."><input className="field" type="text" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} required autoComplete="off" /></Field>
             <Segmented value={f.role} onChange={(role) => setF({ ...f, role })} options={[{ value: "teacher", label: "Game master" }, { value: "admin", label: "Admin" }]} />
             <button className="btn btn-primary w-full" disabled={pending}>Create account</button>
           </form>
@@ -39,7 +39,7 @@ export function StaffAdmin({ staff, meId }: { staff: Staff[]; meId: number }) {
         <Panel title="Change my password">
           <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); act(() => changeMyPassword(pw), { onOk: () => setPw({ current: "", next: "" }) }); }}>
             <Field label="Current password"><input className="field" type="password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} autoComplete="current-password" required /></Field>
-            <Field label="New password"><input className="field" type="password" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} autoComplete="new-password" minLength={10} required /></Field>
+            <Field label="New password"><input className="field" type="password" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} autoComplete="new-password" required /></Field>
             <button className="btn w-full" disabled={pending}>Change password</button>
           </form>
         </Panel>

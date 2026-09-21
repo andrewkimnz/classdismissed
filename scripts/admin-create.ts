@@ -9,7 +9,7 @@ async function main() {
     console.error('Usage: npm run admin:create -- <email> <password> "<Full Name>" [admin|teacher]');
     process.exit(1);
   }
-  if (password.length < 10) throw new Error("Use a password of at least 10 characters.");
+  if (!password) throw new Error("Enter a password.");
   if (!["admin", "teacher"].includes(role)) throw new Error('Role must be "admin" or "teacher".');
   const conn = await connect();
   await migrate(conn);

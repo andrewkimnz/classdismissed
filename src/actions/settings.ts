@@ -69,7 +69,7 @@ export async function deleteTier(input: { id: number }): Promise<ActionResult> {
 // ── staff accounts ─────────────────────────────────────────────────────────
 export async function createAdmin(input: { email: string; name: string; role: "admin" | "teacher"; password: string }): Promise<ActionResult> {
   return run("manage", async (ctx) => {
-    const v = parse(z.object({ email: z.string().trim().email("Enter a valid email"), name: z.string().trim().min(1).max(60), role: z.enum(["admin", "teacher"]), password: z.string().min(10, "Use at least 10 characters").max(200) }), input);
+    const v = parse(z.object({ email: z.string().trim().email("Enter a valid email"), name: z.string().trim().min(1).max(60), role: z.enum(["admin", "teacher"]), password: z.string().min(1, "Enter a password").max(200) }), input);
     try {
       await ctx.sql`insert into admins (email, name, role, password_hash) values (${v.email}, ${v.name}, ${v.role}, ${await hashPassword(v.password)})`;
     } catch (e) {
@@ -105,7 +105,7 @@ export async function setAdminRole(input: { id: number; role: "admin" | "teacher
 
 export async function changeMyPassword(input: { current: string; next: string }): Promise<ActionResult> {
   return run("checkin", async (ctx) => {
-    const v = parse(z.object({ current: z.string(), next: z.string().min(10, "Use at least 10 characters").max(200) }), input);
+    const v = parse(z.object({ current: z.string(), next: z.string().min(1, "Enter a password").max(200) }), input);
     const [row] = await ctx.sql<{ passwordHash: string }>`select password_hash from admins where id = ${ctx.actor.id}`;
     if (!(await verifyPassword(v.current, row.passwordHash))) throw new UserError("Current password is wrong.");
     await ctx.sql`update admins set password_hash = ${await hashPassword(v.next)} where id = ${ctx.actor.id}`;

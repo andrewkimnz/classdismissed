@@ -48,7 +48,7 @@ Test on a real phone on the same Wi-Fi: `npm run dev`, then open `http://<your-l
 | `npm run db:seed` | Wipe event data and load the **demo** state (After School, sample notes/attempts/detentions). Keeps staff accounts |
 | `npm run db:seed -- --profile=fresh` | Same roster, but a clean **School Day**: no scores, notes or attempts (rehearsal) |
 | `npm run db:seed -- --profile=blank` | Config only (classes, subjects, clubs, tiers, grades). **No students**: the starting point for the real event |
-| `npm run admin:create -- you@x.com "long-password" "Your Name" [admin\|teacher]` | Create (or reset) a staff account |
+| `npm run admin:create -- you@x.com "password" "Your Name" [admin\|teacher]` | Create (or reset) a staff account |
 
 Seed flags: `--yes` skips the "type wipe" prompt when `DATABASE_URL` is set · `--demo-admin` creates the demo admin on a remote DB (it is *not* created on remote databases by default).
 
@@ -159,7 +159,7 @@ Unique partial indexes enforce the live-event edge cases in the database itself:
 6. **Load starting data**: for the real event start from the *blank* profile and add your students:
    ```bash
    DATABASE_URL='…' npm run db:seed -- --profile=blank --yes
-   DATABASE_URL='…' npm run admin:create -- you@kac.nz "a-long-password" "Your Name" admin
+   DATABASE_URL='…' npm run admin:create -- you@kac.nz "password" "Your Name" admin
    ```
    then paste your sign-up list under **Students → Import list** (numbers, codes and balanced classes are automatic).
    To preview with fake people first: `--profile=demo`.

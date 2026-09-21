@@ -61,7 +61,7 @@ async function main() {
   console.log(`     → ${adminName}`);
   let adminPassword = "";
   for (let i = 0; i < 5 && !adminPassword; i++) {
-    const pw = await askChecked("6/6  Choose an admin password, 10+ characters (hidden): ", checkAdminPassword, { secret: true });
+    const pw = await askChecked("6/6  Choose an admin password (hidden): ", checkAdminPassword, { secret: true });
     if ((await ask("     Type it again to confirm (hidden): ")) === pw) adminPassword = pw;
     else console.log("  ✗ Those didn't match. Try again.\n");
   }
