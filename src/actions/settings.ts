@@ -103,6 +103,19 @@ export async function setAdminRole(input: { id: number; role: "admin" | "teacher
   });
 }
 
+export async function deleteAdmin(input: { id: number }): Promise<ActionResult> {
+  return run("manage", async (ctx) => {
+    const v = parse(z.object({ id }), input);
+    if (v.id === ctx.actor.id) throw new UserError("You can't delete your own account.");
+    const [target] = await ctx.sql<{ name: string }>`select name from admins where id = ${v.id}`;
+    if (!target) throw new UserError("That account no longer exists.");
+    // Everything they did stays (scores, notes, the activity log keeps their name); those records just stop pointing at the account.
+    await ctx.sql`delete from admins where id = ${v.id}`;
+    await audit(ctx, "admin.delete", `Deleted the account for ${target.name}`);
+    return { message: `${target.name}'s account was deleted. Their past work is kept.` };
+  });
+}
+
 export async function changeMyPassword(input: { current: string; next: string }): Promise<ActionResult> {
   return run("checkin", async (ctx) => {
     const v = parse(z.object({ current: z.string(), next: z.string().min(1, "Enter a password").max(200) }), input);

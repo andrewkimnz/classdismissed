@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { changeMyPassword, createAdmin, setAdminActive, setAdminRole } from "@/actions/settings";
-import { Field, Panel, Segmented, Switch, useAct } from "@/components/admin/ui";
+import { changeMyPassword, createAdmin, deleteAdmin, setAdminActive, setAdminRole } from "@/actions/settings";
+import { ConfirmButton, Field, Panel, Segmented, Switch, useAct } from "@/components/admin/ui";
 import { Chip } from "@/components/ui/kit";
 import { timeAgo } from "@/lib/domain/time";
 
@@ -22,6 +22,7 @@ export function StaffAdmin({ staff, meId }: { staff: Staff[]; meId: number }) {
               <div className="min-w-0 flex-1"><div className="font-extrabold">{s.name} {s.id === meId && <Chip tone="accent">you</Chip>}</div><div className="truncate text-xs text-ink-soft">{s.email} · {s.lastLoginAt ? `signed in ${timeAgo(s.lastLoginAt)}` : "never signed in"}</div></div>
               <Segmented value={s.role} disabled={pending || s.id === meId} onChange={(role) => act(() => setAdminRole({ id: s.id, role }))} options={[{ value: "admin", label: "Admin" }, { value: "teacher", label: "Game master" }]} />
               <Switch label={`${s.name} active`} checked={s.active} disabled={pending || s.id === meId} onChange={(active) => act(() => setAdminActive({ id: s.id, active }))} />
+              {s.id !== meId && <ConfirmButton size="sm" variant="ghost" confirmLabel="Delete for good?" disabled={pending} onConfirm={() => act(() => deleteAdmin({ id: s.id }))}>Delete</ConfirmButton>}
             </li>
           ))}
         </ul>
