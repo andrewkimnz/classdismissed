@@ -1,5 +1,7 @@
 import fs from "node:fs";
+import { randomBytes } from "node:crypto";
 import { createPrompter } from "./lib/prompt";
+import { checkDatabaseUrl } from "../src/lib/setup-validate";
 
 /**
  *   npm run doctor
@@ -12,6 +14,7 @@ import { createPrompter } from "./lib/prompt";
  */
 
 const ENV_FILE = process.argv[2] ?? ".env.production.local";
+const { ask, askDatabaseUrl, close } = createPrompter();
 const line = (s = "") => console.log(s);
 const ok = (s: string) => console.log(`  ✓ ${s}`);
 const bad = (s: string) => console.log(`  ✗ ${s}`);
@@ -28,6 +31,7 @@ function describe(e: unknown): string {
 const why = (e: unknown) => clean(describe(e));
 
 let failures = 0;
+let fromPrompt = false;
 async function step<T>(name: string, fn: () => Promise<T>): Promise<T | undefined> {
   const t = Date.now();
   try {
@@ -47,15 +51,18 @@ async function step<T>(name: string, fn: () => Promise<T>): Promise<T | undefine
 async function main() {
   line("\nKAC Academy: doctor");
   line("───────────────────");
-  if (!fs.existsSync(ENV_FILE)) {
-    bad(`${ENV_FILE} isn't here. It's the file the setup command wrote (and that you may have deleted).`);
-    line("    Run  npm run setup:production  again: it never wipes event data, and it rewrites that file.\n");
-    process.exit(1);
-  }
   const env: Record<string, string> = {};
-  for (const l of fs.readFileSync(ENV_FILE, "utf8").split("\n")) {
-    const m = /^([A-Z_]+)=(.*)$/.exec(l.trim());
-    if (m) env[m[1]] = m[2];
+  if (fs.existsSync(ENV_FILE)) {
+    for (const l of fs.readFileSync(ENV_FILE, "utf8").split("\n")) {
+      const m = /^([A-Z_]+)=(.*)$/.exec(l.trim());
+      if (m) env[m[1]] = m[2];
+    }
+  } else {
+    line(`No ${ENV_FILE} here (it's meant to be deleted after deploying). That's fine: paste just the database connection string.`);
+    line("Only the database is checked this way. The website's own settings are checked live at https://<your-site>/api/health.\n");
+    env.DATABASE_URL = await askDatabaseUrl("Transaction-pooler connection string, exactly as Supabase shows it (hidden): ", (v) => checkDatabaseUrl(v));
+    env.SESSION_SECRET = randomBytes(32).toString("base64"); // only used to test that a cookie can be made and read
+    fromPrompt = true;
   }
   Object.assign(process.env, env);
   (process.env as Record<string, string>).NODE_ENV = "production";
@@ -64,12 +71,12 @@ async function main() {
     secrets.push(decodeURIComponent(new URL(env.DATABASE_URL).password), new URL(env.DATABASE_URL).password);
   } catch {}
 
-  line("Settings");
-  for (const k of ["DATABASE_URL", "SESSION_SECRET", "NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY"]) {
+  if (!fromPrompt) line("Settings");
+  if (!fromPrompt) for (const k of ["DATABASE_URL", "SESSION_SECRET", "NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY"]) {
     env[k] ? ok(`${k} is set`) : (failures++, bad(`${k} is missing from ${ENV_FILE}`));
   }
-  if (env.SESSION_SECRET && env.SESSION_SECRET.length < 16) (failures++, bad("SESSION_SECRET is too short (needs 16+ characters): sign-in cannot work"));
-  line("  (Vercel must hold these exact values: Project → Settings → Environment Variables. After changing any, redeploy.)");
+  if (!fromPrompt && env.SESSION_SECRET && env.SESSION_SECRET.length < 16) (failures++, bad("SESSION_SECRET is too short (needs 16+ characters): sign-in cannot work"));
+  if (!fromPrompt) line("  (Vercel must hold these exact values: Project → Settings → Environment Variables. After changing any, redeploy.)");
 
   line("\nDatabase");
   const { db } = await import("../src/lib/db/client");
@@ -118,7 +125,6 @@ async function main() {
     await conn.sql`update admins set last_login_at = last_login_at where id = ${admins[0].id}`;
   });
 
-  const { ask, close } = createPrompter();
   const email = (await ask("\nTo test your password too, type your admin email (or press Enter to skip): ")).trim();
   if (email) {
     const pw = await ask("Password (hidden): ");
