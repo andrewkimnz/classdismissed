@@ -15,7 +15,7 @@ export const getAllModifications = cache(async () =>
   sql<ModificationRow & { createdByName: string | null }>`
     select m.*, a.name as created_by_name from grade_modifications m left join admins a on a.id = m.created_by order by m.id desc`);
 
-export const getAdmins = cache(async () => sql<AdminRow>`select id, email, name, role, active, last_login_at, created_at from admins order by id`);
+export const getAdmins = cache(async () => sql<AdminRow>`select id, email as username, name, role, active, last_login_at, created_at from admins order by id`);
 
 export const getArchivedClubs = cache(async () => sql<ClubRow>`select * from clubs where archived_at is not null order by name`);
 

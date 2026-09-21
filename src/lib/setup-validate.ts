@@ -79,9 +79,13 @@ export function checkSecretKey(input: string, publicKey: string): Check {
   return bad("That doesn't look like a secret key. It should start with sb_secret_ (Settings → API Keys).");
 }
 
-export function checkEmail(input: string): Check {
+/** Staff sign in with a username: any 1–40 characters, no spaces. (Shared with the staff-accounts form.) */
+export function checkUsername(input: string): Check {
   const v = input.trim();
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? { ok: true, value: v } : bad("That doesn't look like an email address.");
+  if (!v) return bad("Enter a username.");
+  if (/\s/.test(v)) return bad("A username can't contain spaces.");
+  if (v.length > 40) return bad("Keep it to 40 characters or fewer.");
+  return { ok: true, value: v };
 }
 
 export function checkAdminPassword(pw: string): Check {

@@ -67,13 +67,13 @@ export async function deleteTier(input: { id: number }): Promise<ActionResult> {
 }
 
 // ── staff accounts ─────────────────────────────────────────────────────────
-export async function createAdmin(input: { email: string; name: string; role: "admin" | "teacher"; password: string }): Promise<ActionResult> {
+export async function createAdmin(input: { username: string; name: string; role: "admin" | "teacher"; password: string }): Promise<ActionResult> {
   return run("manage", async (ctx) => {
-    const v = parse(z.object({ email: z.string().trim().email("Enter a valid email"), name: z.string().trim().min(1).max(60), role: z.enum(["admin", "teacher"]), password: z.string().min(1, "Enter a password").max(200) }), input);
+    const v = parse(z.object({ username: z.string().trim().min(1, "Enter a username").max(40, "Keep it to 40 characters or fewer").regex(/^\S+$/, "A username can't contain spaces"), name: z.string().trim().min(1).max(60), role: z.enum(["admin", "teacher"]), password: z.string().min(1, "Enter a password").max(200) }), input);
     try {
-      await ctx.sql`insert into admins (email, name, role, password_hash) values (${v.email}, ${v.name}, ${v.role}, ${await hashPassword(v.password)})`;
+      await ctx.sql`insert into admins (email, name, role, password_hash) values (${v.username}, ${v.name}, ${v.role}, ${await hashPassword(v.password)})`;
     } catch (e) {
-      if (isUniqueViolation(e)) throw new UserError("An account with that email already exists.");
+      if (isUniqueViolation(e)) throw new UserError("That username is already taken.");
       throw e;
     }
     await audit(ctx, "admin.create", `Created ${v.role} account for ${v.name}`);

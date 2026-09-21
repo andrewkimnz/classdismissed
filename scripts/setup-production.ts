@@ -6,7 +6,7 @@ import { connect } from "../src/lib/db/client";
 import { migrate } from "../src/lib/db/migrate";
 import { seed } from "../src/lib/db/seed";
 import {
-  checkAdminPassword, checkDatabaseUrl, checkEmail, checkProjectUrl, checkPublicKey, checkSecretKey, mask,
+  checkAdminPassword, checkDatabaseUrl, checkUsername, checkProjectUrl, checkPublicKey, checkSecretKey, mask,
 } from "../src/lib/setup-validate";
 
 /**
@@ -55,8 +55,8 @@ async function main() {
   const publicKey = await askChecked("3/6  Publishable key, sb_publishable_… (hidden): ", checkPublicKey, { secret: true });
   const secretKey = await askChecked("4/6  Secret key, sb_secret_… (hidden): ", (v) => checkSecretKey(v, publicKey), { secret: true });
   line();
-  const adminEmail = await askChecked("5/6  Your admin email: ", checkEmail);
-  console.log(`     → ${adminEmail}`);
+  const adminUsername = await askChecked("5/6  Your admin username (what you type to sign in, no spaces): ", checkUsername);
+  console.log(`     → ${adminUsername}`);
   const adminName = (await ask("     Your name (shown in the staff room): ")) || "Admin";
   console.log(`     → ${adminName}`);
   let adminPassword = "";
@@ -94,13 +94,13 @@ async function main() {
     }
 
     const hash = await hashPassword(adminPassword);
-    const found = await conn.sql<{ id: number }>`select id from admins where lower(email) = lower(${adminEmail}::text)`;
+    const found = await conn.sql<{ id: number }>`select id from admins where lower(email) = lower(${adminUsername}::text)`;
     if (found.length) {
       await conn.sql`update admins set password_hash = ${hash}, name = ${adminName}, role = 'admin', active = true where id = ${found[0].id}`;
-      ok(`admin account ${adminEmail} already existed: password updated`);
+      ok(`admin account ${adminUsername} already existed: password updated`);
     } else {
-      await conn.sql`insert into admins (email, name, role, password_hash) values (${adminEmail}, ${adminName}, 'admin', ${hash})`;
-      ok(`created admin account ${adminEmail}`);
+      await conn.sql`insert into admins (email, name, role, password_hash) values (${adminUsername}, ${adminName}, 'admin', ${hash})`;
+      ok(`created admin account ${adminUsername}`);
     }
   } finally {
     await conn.end();

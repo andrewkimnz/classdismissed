@@ -11,7 +11,7 @@ export default async function StaffPage() {
   return (
     <>
       <PageHeader title="Staff accounts" hint="who can run the night" />
-      <StaffAdmin meId={me.id} staff={staff.map((s) => ({ id: s.id, name: s.name, email: s.email, role: s.role, active: s.active, lastLoginAt: s.lastLoginAt?.toISOString() ?? null }))} />
+      <StaffAdmin meId={me.id} staff={staff.map((s) => ({ id: s.id, name: s.name, username: s.username, role: s.role, active: s.active, lastLoginAt: s.lastLoginAt?.toISOString() ?? null }))} />
     </>
   );
 }

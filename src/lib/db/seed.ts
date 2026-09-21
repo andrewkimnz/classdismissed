@@ -16,7 +16,7 @@ import type { Db } from "./client";
  * Accounts are never deleted. The demo admin is only created when asked for.
  */
 export type SeedProfile = "demo" | "fresh" | "blank";
-export const DEMO_ADMIN = { email: "admin@kac.test", password: "classdismissed", name: "Demo Exec" };
+export const DEMO_ADMIN = { username: "admin", password: "classdismissed", name: "Demo Exec" };
 export const DEMO_STUDENT_CODE = "KIM042";
 
 const EVENT_DATE = "2026-10-02";
@@ -319,10 +319,13 @@ export async function seed(conn: Db, opts: { profile: SeedProfile; demoAdmin?: b
 
   if (opts.demoAdmin) {
     const hash = await hashPassword(DEMO_ADMIN.password);
+    // Older demo databases have the demo account under its former email-style name: keep it, just rename it.
+    await conn.sql`update admins set email = ${DEMO_ADMIN.username}::text where lower(email) = 'admin@kac.test'
+      and not exists (select 1 from admins where lower(email) = lower(${DEMO_ADMIN.username}::text))`;
     await conn.sql`
       insert into admins (email, name, role, password_hash)
-      select ${DEMO_ADMIN.email}::text, ${DEMO_ADMIN.name}::text, 'admin', ${hash}::text
-      where not exists (select 1 from admins where lower(email) = lower(${DEMO_ADMIN.email}::text))`;
+      select ${DEMO_ADMIN.username}::text, ${DEMO_ADMIN.name}::text, 'admin', ${hash}::text
+      where not exists (select 1 from admins where lower(email) = lower(${DEMO_ADMIN.username}::text))`;
   }
 
   // Record that this database was seeded on purpose, so the zero-config dev boot

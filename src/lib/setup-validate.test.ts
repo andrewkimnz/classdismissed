@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { checkAdminPassword, checkDatabaseUrl, checkProjectUrl, checkPublicKey, checkSecretKey, jwtRole, mask } from "./setup-validate";
+import { checkAdminPassword, checkUsername, checkDatabaseUrl, checkProjectUrl, checkPublicKey, checkSecretKey, jwtRole, mask } from "./setup-validate";
 
 const jwt = (role: string) => `eyJhbGciOiJIUzI1NiJ9.${Buffer.from(JSON.stringify({ role })).toString("base64url")}.sig_abc-123`;
 const REF = "abcdefghijklmnopqrst";
@@ -53,6 +53,21 @@ describe("setup: connection string and project", () => {
   });
   it("rejects a malformed project URL", () => {
     for (const u of ["http://x.supabase.co", "https://example.com", "abcdefghijklmnopqrst"]) assert.equal(checkProjectUrl(u).ok, false);
+  });
+});
+
+describe("setup: staff usernames", () => {
+  it("accepts plain usernames, and email-style ones from before", () => {
+    assert.deepEqual(checkUsername("  andrew "), { ok: true, value: "andrew" });
+    assert.equal(checkUsername("andrew@example.com").ok, true);
+    assert.equal(checkUsername("exec_1").ok, true);
+  });
+  it("refuses empty, spaced or over-long usernames", () => {
+    assert.equal(checkUsername("").ok, false);
+    assert.equal(checkUsername("   ").ok, false);
+    assert.equal(checkUsername("two words").ok, false);
+    assert.equal(checkUsername("x".repeat(41)).ok, false);
+    assert.equal(checkUsername("x".repeat(40)).ok, true);
   });
 });
 

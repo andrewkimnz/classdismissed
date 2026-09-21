@@ -6,11 +6,11 @@ import { ConfirmButton, Field, Panel, Segmented, Switch, useAct } from "@/compon
 import { Chip } from "@/components/ui/kit";
 import { timeAgo } from "@/lib/domain/time";
 
-interface Staff { id: number; name: string; email: string; role: "admin" | "teacher"; active: boolean; lastLoginAt: string | null }
+interface Staff { id: number; name: string; username: string; role: "admin" | "teacher"; active: boolean; lastLoginAt: string | null }
 
 export function StaffAdmin({ staff, meId }: { staff: Staff[]; meId: number }) {
   const { act, pending } = useAct();
-  const [f, setF] = useState({ name: "", email: "", password: "", role: "teacher" as "admin" | "teacher" });
+  const [f, setF] = useState({ name: "", username: "", password: "", role: "teacher" as "admin" | "teacher" });
   const [pw, setPw] = useState({ current: "", next: "" });
   return (
     <div className="grid gap-4 lg:grid-cols-2">
@@ -19,7 +19,7 @@ export function StaffAdmin({ staff, meId }: { staff: Staff[]; meId: number }) {
         <ul className="divide-y divide-line">
           {staff.map((s) => (
             <li key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-3">
-              <div className="min-w-0 flex-1"><div className="font-extrabold">{s.name} {s.id === meId && <Chip tone="accent">you</Chip>}</div><div className="truncate text-xs text-ink-soft">{s.email} · {s.lastLoginAt ? `signed in ${timeAgo(s.lastLoginAt)}` : "never signed in"}</div></div>
+              <div className="min-w-0 flex-1"><div className="font-extrabold">{s.name} {s.id === meId && <Chip tone="accent">you</Chip>}</div><div className="truncate text-xs text-ink-soft">{s.username} · {s.lastLoginAt ? `signed in ${timeAgo(s.lastLoginAt)}` : "never signed in"}</div></div>
               <Segmented value={s.role} disabled={pending || s.id === meId} onChange={(role) => act(() => setAdminRole({ id: s.id, role }))} options={[{ value: "admin", label: "Admin" }, { value: "teacher", label: "Game master" }]} />
               <Switch label={`${s.name} active`} checked={s.active} disabled={pending || s.id === meId} onChange={(active) => act(() => setAdminActive({ id: s.id, active }))} />
               {s.id !== meId && <ConfirmButton size="sm" variant="ghost" confirmLabel="Delete for good?" disabled={pending} onConfirm={() => act(() => deleteAdmin({ id: s.id }))}>Delete</ConfirmButton>}
@@ -29,9 +29,9 @@ export function StaffAdmin({ staff, meId }: { staff: Staff[]; meId: number }) {
       </Panel>
       <div className="space-y-4">
         <Panel title="Add a staff account">
-          <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); act(() => createAdmin(f), { onOk: () => setF({ name: "", email: "", password: "", role: "teacher" }) }); }}>
+          <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); act(() => createAdmin(f), { onOk: () => setF({ name: "", username: "", password: "", role: "teacher" }) }); }}>
             <Field label="Name"><input className="field" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} required /></Field>
-            <Field label="Email"><input className="field" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} required autoComplete="off" /></Field>
+            <Field label="Username" hint="What they type to sign in. No spaces."><input className="field" value={f.username} onChange={(e) => setF({ ...f, username: e.target.value })} required maxLength={40} pattern="\S+" title="No spaces" autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="off" /></Field>
             <Field label="Temporary password" hint="Tell them to change it."><input className="field" type="text" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} required autoComplete="off" /></Field>
             <Segmented value={f.role} onChange={(role) => setF({ ...f, role })} options={[{ value: "teacher", label: "Game master" }, { value: "admin", label: "Admin" }]} />
             <button className="btn btn-primary w-full" disabled={pending}>Create account</button>

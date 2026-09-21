@@ -33,7 +33,7 @@ async function main() {
   const demoAdmin = flag("demo-admin") || !remote;
   const summary = await seed(conn, { profile, demoAdmin });
   console.log(`Seeded "${profile}": ${summary.classes} classes, ${summary.students} students.`);
-  if (summary.demoAdmin) console.log(`Demo admin: ${DEMO_ADMIN.email} / ${DEMO_ADMIN.password}  (delete this account before the real event)`);
+  if (summary.demoAdmin) console.log(`Demo admin: ${DEMO_ADMIN.username} / ${DEMO_ADMIN.password}  (delete this account before the real event)`);
   await conn.end();
 }
 main().catch((e) => {

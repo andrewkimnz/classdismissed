@@ -13,7 +13,7 @@ export const getAdmin = cache(async (): Promise<AdminRow | null> => {
   const payload = verifySession(token, "a");
   if (!payload) return null;
   const rows = await sql<AdminRow>`
-    select id, email, name, role, active, last_login_at, created_at from admins where id = ${payload.id} and active`;
+    select id, email as username, name, role, active, last_login_at, created_at from admins where id = ${payload.id} and active`;
   return rows[0] ?? null;
 });
 

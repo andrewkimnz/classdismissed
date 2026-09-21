@@ -88,10 +88,10 @@ async function main() {
   if (!conn) return finish();
 
   const admins = await step("admin accounts", async () => {
-    const rows = await conn.sql<{ id: number; email: string; role: string; active: boolean; hashOk: boolean; lastLoginAt: Date | null }>`
-      select id, email, role, active, (split_part(password_hash, '$', 1) = 'scrypt' and split_part(password_hash, '$', 3) <> '') as hash_ok, last_login_at from admins order by id`;
+    const rows = await conn.sql<{ id: number; username: string; role: string; active: boolean; hashOk: boolean; lastLoginAt: Date | null }>`
+      select id, email as username, role, active, (split_part(password_hash, '$', 1) = 'scrypt' and split_part(password_hash, '$', 3) <> '') as hash_ok, last_login_at from admins order by id`;
     if (!rows.length) throw new Error("there are NO admin accounts. Run: npm run admin:reset");
-    for (const r of rows) console.log(`      ${r.email}  role=${r.role}  ${r.active ? "active" : "DISABLED"}  password stored ${r.hashOk ? "correctly" : "IN A BAD FORMAT"}  last sign-in ${r.lastLoginAt ? new Date(r.lastLoginAt).toISOString() : "never"}`);
+    for (const r of rows) console.log(`      ${r.username}  role=${r.role}  ${r.active ? "active" : "DISABLED"}  password stored ${r.hashOk ? "correctly" : "IN A BAD FORMAT"}  last sign-in ${r.lastLoginAt ? new Date(r.lastLoginAt).toISOString() : "never"}`);
     return rows;
   });
 
@@ -125,14 +125,14 @@ async function main() {
     await conn.sql`update admins set last_login_at = last_login_at where id = ${admins[0].id}`;
   });
 
-  const email = (await ask("\nTo test your password too, type your admin email (or press Enter to skip): ")).trim();
-  if (email) {
+  const username = (await ask("\nTo test your password too, type your admin username (or press Enter to skip): ")).trim();
+  if (username) {
     const pw = await ask("Password (hidden): ");
     secrets.push(pw);
     const { verifyPassword } = await import("../src/lib/auth/password");
-    await step(`password for ${email}`, async () => {
-      const rows = await conn.sql<{ passwordHash: string; active: boolean }>`select password_hash, active from admins where lower(email) = lower(${email}::text)`;
-      if (!rows[0]) throw new Error("no admin account has that email");
+    await step(`password for ${username}`, async () => {
+      const rows = await conn.sql<{ passwordHash: string; active: boolean }>`select password_hash, active from admins where lower(email) = lower(${username}::text)`;
+      if (!rows[0]) throw new Error("no admin account has that username");
       if (!rows[0].active) throw new Error("that account is disabled");
       if (!(await verifyPassword(pw, rows[0].passwordHash))) throw new Error("that is not the stored password. Run: npm run admin:reset");
     });

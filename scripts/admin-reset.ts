@@ -1,12 +1,12 @@
 import { hashPassword } from "../src/lib/auth/password";
 import { connect } from "../src/lib/db/client";
-import { checkAdminPassword, checkDatabaseUrl, checkEmail } from "../src/lib/setup-validate";
+import { checkAdminPassword, checkDatabaseUrl, checkUsername } from "../src/lib/setup-validate";
 import { createPrompter } from "./lib/prompt";
 
 /**
  *   npm run admin:reset
  *
- * Can't sign in to the staff room? This shows which admin accounts exist (emails only) and lets you set a new
+ * Can't sign in to the staff room? This shows which admin accounts exist (usernames only) and lets you set a new
  * password, or create an account, without touching any event data. Every prompt is hidden.
  */
 const { ask, askChecked, askDatabaseUrl, close } = createPrompter();
@@ -27,19 +27,19 @@ async function main() {
   });
 
   try {
-    const accounts = await conn.sql<{ email: string; name: string; role: string; active: boolean; lastLoginAt: Date | null }>`
-      select email, name, role, active, last_login_at from admins order by id`;
+    const accounts = await conn.sql<{ username: string; name: string; role: string; active: boolean; lastLoginAt: Date | null }>`
+      select email as username, name, role, active, last_login_at from admins order by id`;
     console.log("\nAccounts that exist right now:");
     if (!accounts.length) console.log("  (none)");
     for (const a of accounts) {
-      console.log(`  • ${a.email}  [${a.role === "admin" ? "admin" : "game master"}${a.active ? "" : ", DEACTIVATED"}]  ${a.lastLoginAt ? "last signed in " + a.lastLoginAt.toISOString().slice(0, 16).replace("T", " ") + " UTC" : "never signed in"}`);
+      console.log(`  • ${a.username}  [${a.role === "admin" ? "admin" : "game master"}${a.active ? "" : ", DEACTIVATED"}]  ${a.lastLoginAt ? "last signed in " + a.lastLoginAt.toISOString().slice(0, 16).replace("T", " ") + " UTC" : "never signed in"}`);
     }
     console.log();
 
-    const email = await askChecked("2/3  Email for the account to reset (or create): ", checkEmail);
-    console.log(`     → ${email}`);
-    const existing = accounts.find((a) => a.email.toLowerCase() === email.toLowerCase());
-    console.log(existing ? "     That account exists: its password will be replaced." : "     No account has that email: a new admin account will be created.");
+    const username = await askChecked("2/3  Username for the account to reset (or create): ", checkUsername);
+    console.log(`     → ${username}`);
+    const existing = accounts.find((a) => a.username.toLowerCase() === username.toLowerCase());
+    console.log(existing ? "     That account exists: its password will be replaced." : "     No account has that username: a new admin account will be created.");
 
     let password = "";
     for (let i = 0; i < 5 && !password; i++) {
@@ -55,13 +55,13 @@ async function main() {
 
     const hash = await hashPassword(password);
     if (existing) {
-      await conn.sql`update admins set password_hash = ${hash}, active = true where lower(email) = lower(${email}::text)`;
-      console.log(`\n  ✓ New password set for ${email}${existing.role === "admin" ? "" : " (note: this account is a game master, so it only sees the During event tools)"}.`);
+      await conn.sql`update admins set password_hash = ${hash}, active = true where lower(email) = lower(${username}::text)`;
+      console.log(`\n  ✓ New password set for ${username}${existing.role === "admin" ? "" : " (note: this account is a game master, so it only sees the During event tools)"}.`);
     } else {
-      await conn.sql`insert into admins (email, name, role, password_hash) values (${email}, ${email.split("@")[0]}, 'admin', ${hash})`;
-      console.log(`\n  ✓ Created admin account ${email}.`);
+      await conn.sql`insert into admins (email, name, role, password_hash) values (${username}, ${username}, 'admin', ${hash})`;
+      console.log(`\n  ✓ Created admin account ${username}.`);
     }
-    console.log("  Sign in at /admin/login with that email and the new password.\n");
+    console.log("  Sign in at /admin/login with that username and the new password.\n");
   } finally {
     await conn.end();
   }

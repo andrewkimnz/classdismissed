@@ -29,7 +29,7 @@ loads demo data on first boot: 8 classes, 52 students, timetable, scores, clubs,
 | | |
 |---|---|
 | Student demo login | open <http://localhost:3000/l/KIM042>, or type code `KIM-042` at `/login`. That's **Andrew Kim, KAC-042, class 2-B**: 63/80 = 78.75% = B+ (A- after the +5% break-in) |
-| Admin demo login | <http://localhost:3000/admin> · `admin@kac.test` / `classdismissed` |
+| Admin demo login | <http://localhost:3000/admin> · `admin` / `classdismissed` |
 
 > The embedded database is for local use only. It refuses to run on Vercel. Change the demo admin
 > password (or delete the account) before a real event: see *Staff accounts* below.
@@ -91,7 +91,7 @@ Design decisions worth knowing:
   Login codes are never loaded into the shared data model, so they can't leak through a page prop.
 * **Auth without a third party.** Students: a 6-character code (QR on their card → `/l/CODE`), stored as
   an HMAC-signed httpOnly cookie, invalidated by `session_version` ("sign out of all phones"). Staff:
-  email + scrypt-hashed password, 24 h signed cookie, login rate-limited. *(Supabase Auth was considered;
+  username + scrypt-hashed password, 24 h signed cookie, login rate-limited. *(Supabase Auth was considered;
   one fewer moving part on the night, and it works identically locally.)*
 * **Roles.** `admin`: everything. `teacher` ("game master"): **only the "During event" tools**: Score entry,
   Teacher's Notes, Principal's Office and Detention. Every other staff-room page, and every action behind
@@ -216,7 +216,7 @@ student's award. Upload class/team photos on each class page and a final photo p
 
 ### Can't sign in to the staff room?
 Run `npm run admin:reset`. It asks for your Supabase connection string (and database password), then **lists the admin
-accounts that exist (emails only)**, so you can see which email you actually created, and lets you set a new password for
+accounts that exist (usernames only)**, so you can see which username you actually created, and lets you set a new password for
 one of them (or create an account). Every prompt is hidden and no event data is touched. It only needs the database
 connection, never the API keys.
 
@@ -228,9 +228,10 @@ hidden, and error text has every secret removed before it's shown. If a page cra
 **Sign out**, so a crash never locks anyone out of the staff room.
 
 ### Staff accounts
-`npm run admin:create -- email password "Name" admin|teacher` (also creates or resets). In the app:
+`npm run admin:create -- username password "Name" admin|teacher` (also creates or resets). In the app:
 *Staff accounts* to add game masters, change roles, deactivate accounts, and change your own password.
-**Delete or change `admin@kac.test` before the event.**
+**Delete or change the demo `admin` account before the event.**
+Staff sign in with a **username** (1–40 characters, no spaces; not case-sensitive). It is stored in the `admins.email` column, which keeps its old name so no database migration was needed.
 
 ### Resetting
 | Goal | How |

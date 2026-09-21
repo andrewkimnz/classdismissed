@@ -27,7 +27,8 @@ export interface EventRow {
 
 export interface AdminRow {
   id: number;
-  email: string;
+  /** Stored in the `email` column (kept under that name so no database migration was needed); it is a plain username. */
+  username: string;
   name: string;
   role: AdminRole;
   active: boolean;

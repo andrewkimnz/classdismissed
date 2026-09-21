@@ -42,14 +42,14 @@ export async function studentLogout(): Promise<void> {
 export async function adminLogin(_prev: FormState, formData: FormData): Promise<FormState> {
   const ip = await clientIp();
   if (rateLimited(`admin:${ip}`, 10, 5 * 60_000)) return { error: "Too many attempts. Wait a few minutes." };
-  const email = String(formData.get("email") ?? "").trim();
+  const username = String(formData.get("username") ?? formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   const rows = await sql<{ id: number; passwordHash: string; active: boolean; role: AdminRole }>`
-    select id, password_hash, active, role from admins where lower(email) = lower(${email}::text)`;
+    select id, password_hash, active, role from admins where lower(email) = lower(${username}::text)`; // the column is still named "email"
   const row = rows[0];
-  // Same message and roughly the same work for unknown emails and wrong passwords.
+  // Same message and roughly the same work for unknown usernames and wrong passwords.
   const ok = row && row.active ? await verifyPassword(password, row.passwordHash) : await verifyPassword(password, "scrypt$00$00").catch(() => false);
-  if (!row || !row.active || !ok) return { error: "Wrong email or password." };
+  if (!row || !row.active || !ok) return { error: "Wrong username or password." };
   await sql`update admins set last_login_at = now() where id = ${row.id}`;
   (await cookies()).set(
     ADMIN_COOKIE,
