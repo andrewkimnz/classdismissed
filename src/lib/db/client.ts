@@ -44,6 +44,8 @@ function wrap(backend: Backend): Db {
   };
 }
 
+const POOL_SIZE = 5;
+
 async function postgresBackend(url: string): Promise<Backend> {
   const { default: postgres } = await import("postgres");
   const isLocal = /@(localhost|127\.0\.0\.1|\[::1\])[:/]/.test(url);
@@ -51,7 +53,7 @@ async function postgresBackend(url: string): Promise<Backend> {
     postgres(url, {
       // Supabase's transaction pooler (pgbouncer) has no prepared statements.
       prepare: false,
-      max: 5,
+      max: POOL_SIZE,
       idle_timeout: 20,
       max_lifetime: 60 * 10,
       connect_timeout: 15,
@@ -60,6 +62,19 @@ async function postgresBackend(url: string): Promise<Backend> {
     });
   let pg = open();
 
+  // Never run more queries at once than there are connections. The driver would otherwise "pipeline" the extras
+  // (send several down one connection without waiting), and Supabase's pooler hangs or drops connections when
+  // that happens: the event data loads 15 queries in parallel, which is exactly what broke the admin page.
+  // A transaction holds its slot until it finishes. Waiting for a slot doesn't count towards the time limit.
+  let free = POOL_SIZE;
+  const waiting: (() => void)[] = [];
+  const acquire = () => (free > 0 ? (free--, Promise.resolve()) : new Promise<void>((go) => waiting.push(go)));
+  const release = () => {
+    const next = waiting.shift();
+    if (next) next();
+    else free++;
+  };
+
   // A serverless instance that was frozen between requests can wake up holding a connection the pooler
   // already closed. Without a limit the first query then waits for minutes. So: cap every query, and when
   // one hangs, throw the pool away. Reads are retried once on a fresh pool; writes are never retried
@@ -67,24 +82,31 @@ async function postgresBackend(url: string): Promise<Backend> {
   const reset = () => {
     const old = pg;
     pg = open();
-    void old.end({ timeout: 0 }).catch(() => {});
+    void old.end({ timeout: 5 }).catch(() => {}); // let anything still running on it finish; force-close after 5 s
   };
+  // The pooler restarting or dropping an idle connection surfaces as one of these; a fresh pool fixes it.
+  const dropped = (e: unknown) => /^CONNECTION_(DESTROYED|CLOSED|ENDED)$/.test((e as { code?: string })?.code ?? "");
   const guarded = async <T>(run: (p: ReturnType<typeof open>) => Promise<T>, retry: boolean, limitMs = 8000): Promise<T> => {
     for (let attempt = 0; ; attempt++) {
       let timer: ReturnType<typeof setTimeout> | undefined;
+      await acquire();
+      const used = pg;
       try {
         return await Promise.race([
-          run(pg),
+          run(used),
           new Promise<never>((_, rej) => {
             timer = setTimeout(() => rej(new Error("DB_TIMEOUT")), limitMs);
           }),
         ]);
       } catch (e) {
-        if (!(e instanceof Error) || e.message !== "DB_TIMEOUT") throw e;
-        reset();
+        const timedOut = e instanceof Error && e.message === "DB_TIMEOUT";
+        if (!timedOut && !(dropped(e) && retry && attempt === 0)) throw e;
+        if (timedOut) reset();
+        else if (pg === used) reset(); // a dropped connection: switch to a fresh pool (unless another caller already did)
         if (!retry || attempt > 0) throw new Error("The database took too long to answer. Please try again.");
       } finally {
         clearTimeout(timer);
+        release();
       }
     }
   };
