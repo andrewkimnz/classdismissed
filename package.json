@@ -4,7 +4,9 @@
   "private": true,
   "description": "KAC Academy: the live event web app for KAC Presents: Class Dismissed",
   "scripts": {
+    "predev": "tsx scripts/gen-migrations-manifest.ts",
     "dev": "next dev",
+    "prebuild": "tsx scripts/gen-migrations-manifest.ts",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",

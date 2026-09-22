@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sql } from "@/lib/db/client";
+import { MIGRATION_FILES } from "@/lib/db/migrations-manifest";
 import { signSession, verifySession } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
@@ -37,11 +38,12 @@ export async function GET() {
     await sql`select 1`;
   });
   await run("tables up to date", async () => {
-    // The newest migration this BUILD needs. Bump this whenever a new file lands in supabase/migrations —
-    // it was last forgotten going from 0005 to 0006, which let this check report "ok" on a database that
-    // wasn't. Migration files aren't bundled with the deployed site, so it can't just list the folder.
-    const rows = await sql<{ n: number }>`select count(*)::int as n from _kac_migrations where name = '0006_math_challenge.sql'`;
-    if (!rows[0]?.n) throw new Error("behind");
+    // MIGRATION_FILES is generated from the real supabase/migrations/ folder before every build (see
+    // package.json's "prebuild"/"predev" and scripts/gen-migrations-manifest.ts), so this never goes
+    // stale the way a hand-maintained filename twice did — the deployed bundle doesn't otherwise carry
+    // the migrations folder, so this generated, imported constant is what stands in for it.
+    const have = new Set((await sql<{ name: string }>`select name from _kac_migrations`).map((r) => r.name));
+    if (MIGRATION_FILES.some((f) => !have.has(f))) throw new Error("behind");
   });
   await run("an admin account exists", async () => {
     const rows = await sql<{ n: number }>`select count(*)::int as n from admins where active`;
