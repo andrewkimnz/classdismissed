@@ -1,4 +1,4 @@
-import type { SubjectRow, World } from "@/lib/types";
+import type { ClassRow, SubjectRow, World } from "@/lib/types";
 import { classTimetable, currentAndNext } from "./timetable";
 
 export interface MathSlot {
@@ -16,6 +16,11 @@ export function currentMathsSlot(w: World, classId: number | null): MathSlot | n
   const { current } = currentAndNext(classTimetable(w, classId));
   if (!current?.subject?.isMathsChallenge) return null;
   return { periodId: current.period.id, subject: current.subject };
+}
+
+/** Every class currently in the Maths-flagged subject right now — there can be more than one room at once. */
+export function classesInMathsNow(w: World): ClassRow[] {
+  return w.classes.filter((c) => currentMathsSlot(w, c.id) !== null);
 }
 
 /** Why a class can't play right now, for a friendly message (not shown when `currentMathsSlot` finds a slot). */

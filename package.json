@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx --test \"src/**/*.test.ts\"",
     "db:migrate": "tsx scripts/db-migrate.ts",
+    "db:migrate:prod": "tsx scripts/db-migrate-production.ts",
     "db:seed": "tsx scripts/db-seed.ts",
     "db:reset": "tsx scripts/db-seed.ts --reset",
     "doctor": "tsx scripts/doctor.ts",

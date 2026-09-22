@@ -98,7 +98,7 @@ async function main() {
   await step("tables are up to date", async () => {
     const have = new Set((await conn.sql<{ name: string }>`select name from _kac_migrations`).map((r) => r.name));
     const missing = fs.readdirSync("supabase/migrations").filter((f) => f.endsWith(".sql")).sort().filter((f) => !have.has(f));
-    if (missing.length) throw new Error(`the database is missing ${missing.join(", ")}. Run: npm run db:migrate (with the production DATABASE_URL)`);
+    if (missing.length) throw new Error(`the database is missing ${missing.join(", ")}. Run: npm run db:migrate:prod`);
   });
 
   line("\nWhat the admin page loads");

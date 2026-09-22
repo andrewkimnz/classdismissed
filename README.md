@@ -45,6 +45,7 @@ Test on a real phone on the same Wi-Fi: `npm run dev`, then open `http://<your-l
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | 33 unit + integration tests (grading, timetable, schema, seed, Principal's Office corrections, sessions). Runs on in-memory Postgres; set `TEST_DATABASE_URL` to run the *same* suite on any real Postgres |
 | `npm run db:migrate` | Apply `supabase/migrations/*.sql` to `DATABASE_URL` (or the embedded DB) |
+| `npm run db:migrate:prod` | Same, but asks for the connection string hidden — run this **after every deploy that adds a migration** |
 | `npm run db:seed` | Wipe event data and load the **demo** state (After School, sample notes/attempts/detentions). Keeps staff accounts |
 | `npm run db:seed -- --profile=fresh` | Same roster, but a clean **School Day**: no scores, notes or attempts (rehearsal) |
 | `npm run db:seed -- --profile=blank` | Config only (classes, subjects, clubs, tiers, grades). **No students**: the starting point for the real event |
@@ -106,6 +107,10 @@ Design decisions worth knowing:
   another; *Maths tosses* in the staff room (admin-only; a game-master tool would be reasonable too, ask if
   you want it added) just shows the queue and can end a window early. Answers are generated and checked
   server-side and never sent to the browser.
+* **`/tv`: a big screen for the venue.** The same queue and recent-tosses list as `/math`, styled for
+  reading from across a room, with no student or admin sign-in — open it straight from a TV/Chromecast
+  browser and leave it running. It isn't linked from anywhere in the app, so it's only reachable by whoever
+  has the URL; say if you'd like it behind a passphrase instead.
 
 ### Data model (`supabase/migrations/0001_schema.sql`, `0006_math_challenge.sql`)
 
@@ -123,6 +128,8 @@ Unique partial indexes enforce the live-event edge cases in the database itself:
 **Student** `/` (Home: changes by phase, and is the timetable during School Day) · `/clubs` · `/clubs/[id]` · `/class` ·
 `/standings` · `/profile` · `/login` · `/l/[code]` (QR sign-in) · `/math` (Maths toss challenge + leaderboard; nav
 tab only shows while it's your class's own Maths period)
+
+**Public, no sign-in** `/tv` (Maths toss queue for a venue screen)
 
 **Staff** `/admin` (event control) · `/checkin` · `/scoring` · `/notes` · `/principal` · `/detention` ·
 `/leaderboard` · `/stats` · `/math` (Maths toss queue) · `/students` (+ `/[id]`, `/import`, `/cards` printable login cards) · `/classes` (+ `/[id]`) ·
@@ -161,12 +168,21 @@ tab only shows while it's your class's own Maths period)
    ```bash
    DATABASE_URL='postgresql://…6543/postgres' npm run db:migrate
    ```
+   or, to be asked for the connection string hidden instead of typing it into a visible command:
+   ```bash
+   npm run db:migrate:prod
+   ```
    Use this command rather than pasting SQL into the Supabase editor: it applies all the files in
    `supabase/migrations/` in order and remembers which ones ran, so it stays safe to re-run when a later
    update adds a migration. (Don't mix the two approaches.) The migrations also enable RLS, create the public `photos` storage bucket, add `live_state` to the
    `supabase_realtime` publication, and add the anon read policy. Each Supabase-specific step is best-effort;
    if any prints a notice, do it by hand: Storage → new **public** bucket `photos`; Database → Replication →
    enable `live_state`; and an RLS `SELECT` policy on `live_state` for `anon`.
+
+   **Run this again after every `git push` that adds a file to `supabase/migrations/`** — a deploy ships the
+   new code immediately, but never touches the database on its own. `/api/health` on your live site shows
+   "tables up to date": "failed" until you do. (Running `npm run db:migrate` with no `DATABASE_URL` set
+   migrates the local embedded demo database instead of production — harmless, but not what you want here.)
 6. **Load starting data**: for the real event start from the *blank* profile and add your students:
    ```bash
    DATABASE_URL='…' npm run db:seed -- --profile=blank --yes
