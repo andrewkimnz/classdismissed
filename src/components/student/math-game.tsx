@@ -109,7 +109,6 @@ function TossWindow({ wonAt, tosses }: { wonAt: string; tosses: number }) {
     <div className="card overflow-hidden bg-sun p-5 text-center">
       <div className="text-5xl">🏆</div>
       <div className="display mt-1 text-2xl">You can toss!</div>
-      <p className="mt-1 text-sm text-ink-soft">Show this to an exec at the Maths table — go now.</p>
       <div className="display my-3 text-[56px] leading-none tabular">{left}</div>
       <div className="h-2.5 overflow-hidden rounded-full border-2 border-ink bg-white/60">
         <div className="h-full bg-ink transition-[width] duration-[5000ms] ease-linear" style={{ width: left === Math.ceil(TOSS_WINDOW_MS / 1000) ? "100%" : "0%" }} />
