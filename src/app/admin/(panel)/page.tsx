@@ -7,6 +7,7 @@ import { getAuditLog } from "@/lib/data/admin";
 import { sql } from "@/lib/db/client";
 import { countEventActivity } from "@/lib/reset";
 import { getWorld } from "@/lib/data/world";
+import { getMathLeaderboard } from "@/lib/data/math";
 import { computeStandings, formatPct } from "@/lib/domain/grades";
 import { formatEventDate, timeAgo } from "@/lib/domain/time";
 
@@ -25,6 +26,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
   const detained = w.detentions.filter((d) => d.status === "pending").length;
   const cells = w.classes.length * w.subjects.filter((s) => s.active).length;
   const marked = w.scores.length;
+  const readyToToss = (await getMathLeaderboard()).filter((r) => r.waiting).length;
   const tiles: { label: string; value: string; href: string; hot?: boolean }[] = [
     { label: "Checked in", value: `${present}/${w.students.length}`, href: "/admin/checkin" },
     { label: "Scores entered", value: `${marked}/${cells}`, href: "/admin/scoring" },
@@ -32,6 +34,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
     { label: "Office attempts", value: String(attempts), href: "/admin/principal" },
     { label: "In detention", value: String(detained), href: "/admin/detention", hot: detained > 0 },
     { label: "Leader", value: standings[0]?.currentPct !== null ? `${standings[0]?.klass.name} ${formatPct(standings[0]?.currentPct ?? null)}` : "—", href: "/admin/leaderboard" },
+    { label: "Waiting to toss", value: String(readyToToss), href: "/admin/math", hot: readyToToss > 0 },
   ];
   return (
     <>

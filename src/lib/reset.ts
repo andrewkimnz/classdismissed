@@ -21,6 +21,7 @@ export interface ResetCounts {
   gradeChanges: number;
   detentions: number;
   checkedIn: number;
+  mathChallenges: number;
 }
 
 export async function countEventActivity(sql: Sql): Promise<ResetCounts> {
@@ -32,13 +33,15 @@ export async function countEventActivity(sql: Sql): Promise<ResetCounts> {
       (select count(*)::int from principal_attempts) as attempts,
       (select count(*)::int from grade_modifications) as grade_changes,
       (select count(*)::int from detentions) as detentions,
-      (select count(*)::int from students where attendance <> 'expected') as checked_in`;
+      (select count(*)::int from students where attendance <> 'expected') as checked_in,
+      (select count(*)::int from math_challenges) as math_challenges`;
   return r;
 }
 
 /** Run inside a transaction. Returns what was cleared. */
 export async function resetEventData(sql: Sql): Promise<ResetCounts> {
   const counts = await countEventActivity(sql);
+  await sql`delete from math_challenges`;
   await sql`delete from detentions`;
   await sql`delete from grade_modifications`;
   await sql`delete from principal_attempts`;

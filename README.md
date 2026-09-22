@@ -97,13 +97,23 @@ Design decisions worth knowing:
   Teacher's Notes, Principal's Office and Detention. Every other staff-room page, and every action behind
   them, is admin-only. It's enforced on the server (pages and actions), not just hidden from the menu, and a
   test fails if a new admin page is added without a permission check. Game masters land on Score entry when they sign in.
+* **Maths toss challenge.** Whichever subject is flagged `is_maths_challenge` (MATHS by default; toggle it on
+  any subject from *Timetable & subjects*, one at a time) gets a bonus: while a class is in that subject —
+  School Day only — each student sees a **Maths** tab. Solve 3 arithmetic questions in a row (a miss just
+  resets the streak and hands over a new question, no penalty) to win a few seconds' window to go make the
+  physical toss, shown live on the `/math` leaderboard so the exec running the table knows who's up. The
+  window closes itself (no exec action needed) and hands the student a fresh question, so they can win
+  another; *Maths tosses* in the staff room (admin-only; a game-master tool would be reasonable too, ask if
+  you want it added) just shows the queue and can end a window early. Answers are generated and checked
+  server-side and never sent to the browser.
 
-### Data model (`supabase/migrations/0001_schema.sql`)
+### Data model (`supabase/migrations/0001_schema.sql`, `0006_math_challenge.sql`)
 
 `events` (single row: identity, phase, every configurable rule) · `admins` · `classes` · `students` ·
-`subjects` · `periods` · `rotations` (period × class → subject + room) · `class_subject_scores` ·
-`grade_boundaries` · `clubs` · `club_completions` · `teacher_notes` · `risk_tiers` · `principal_attempts`
-(with tier snapshots) · `grade_modifications` · `detentions` · `photos` · `audit_log` · `live_state`.
+`subjects` (+ `is_maths_challenge`) · `periods` · `rotations` (period × class → subject + room) ·
+`class_subject_scores` · `grade_boundaries` · `clubs` · `club_completions` · `teacher_notes` · `risk_tiers` ·
+`principal_attempts` (with tier snapshots) · `grade_modifications` · `detentions` · `photos` · `audit_log` ·
+`live_state` · `math_challenges` (one row per student per period: streak, current question, status).
 
 Unique partial indexes enforce the live-event edge cases in the database itself: one active completion and one active note per
 **class** per club (double-tap safe), one current photo per student/kind.
@@ -111,10 +121,11 @@ Unique partial indexes enforce the live-event edge cases in the database itself:
 ### Routes
 
 **Student** `/` (Home: changes by phase, and is the timetable during School Day) · `/clubs` · `/clubs/[id]` · `/class` ·
-`/standings` · `/profile` · `/login` · `/l/[code]` (QR sign-in)
+`/standings` · `/profile` · `/login` · `/l/[code]` (QR sign-in) · `/math` (Maths toss challenge + leaderboard; nav
+tab only shows while it's your class's own Maths period)
 
 **Staff** `/admin` (event control) · `/checkin` · `/scoring` · `/notes` · `/principal` · `/detention` ·
-`/leaderboard` · `/stats` · `/students` (+ `/[id]`, `/import`, `/cards` printable login cards) · `/classes` (+ `/[id]`) ·
+`/leaderboard` · `/stats` · `/math` (Maths toss queue) · `/students` (+ `/[id]`, `/import`, `/cards` printable login cards) · `/classes` (+ `/[id]`) ·
 `/timetable` (times, matrix, subjects) · `/clubs` · `/settings` (rules, grade boundaries, risk tiers, reset) · `/staff` · `/activity`
 
 ---

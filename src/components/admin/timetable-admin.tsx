@@ -5,7 +5,7 @@ import { createSubject, generateRotations, savePeriods, setRotation, setRotation
 import { ConfirmButton, Field, Modal, Panel, Switch, useAct } from "@/components/admin/ui";
 import { cn, readableOn } from "@/lib/cn";
 
-interface Subject { id: number; name: string; tagline: string; description: string; activity: string; icon: string; color: string; maxScore: number; rooms: string[]; active: boolean }
+interface Subject { id: number; name: string; tagline: string; description: string; activity: string; icon: string; color: string; maxScore: number; rooms: string[]; active: boolean; isMathsChallenge: boolean }
 interface Props {
   classes: { id: number; name: string; color: string }[];
   subjects: Subject[];
@@ -107,6 +107,7 @@ function SubjectModal({ subject, onClose }: { subject: Subject | null; onClose: 
   const [f, setF] = useState({
     name: subject?.name ?? "", tagline: subject?.tagline ?? "", description: subject?.description ?? "", activity: subject?.activity ?? "", icon: subject?.icon ?? "📚",
     color: subject?.color ?? "#4F7CFF", maxScore: String(subject?.maxScore ?? 20), rooms: subject?.rooms.join(", ") ?? "", active: subject?.active ?? true,
+    isMathsChallenge: subject?.isMathsChallenge ?? false,
   });
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setF((s) => ({ ...s, [k]: e.target.value }));
   return (
@@ -119,6 +120,7 @@ function SubjectModal({ subject, onClose }: { subject: Subject | null; onClose: 
         <div className="grid grid-cols-2 gap-3"><Field label="Out of (max mark)"><input className="field" inputMode="numeric" value={f.maxScore} onChange={set("maxScore")} /></Field><Field label="Colour"><input type="color" className="field !p-1" value={f.color} onChange={set("color")} /></Field></div>
         <Field label="Room pool" hint="Comma separated. Auto-generate gives each class in the same subject its own room."><input className="field font-mono" value={f.rooms} onChange={set("rooms")} placeholder="201-315, 201-323" /></Field>
         <div className="flex items-center justify-between rounded-xl border-2 border-line bg-white p-3"><div><div className="font-extrabold">Active</div><div className="text-xs text-ink-soft">Inactive subjects are ignored by scoring and auto-generate.</div></div><Switch label="Active" checked={f.active} onChange={(active) => setF((s) => ({ ...s, active }))} /></div>
+        <div className="flex items-center justify-between rounded-xl border-2 border-line bg-white p-3"><div><div className="font-extrabold">🧮 Runs the Maths toss challenge</div><div className="text-xs text-ink-soft">While a class is in this subject, students can solve 3 in a row on their phone to earn a toss. Only one subject at a time.</div></div><Switch label="Runs the Maths toss challenge" checked={f.isMathsChallenge} onChange={(isMathsChallenge) => setF((s) => ({ ...s, isMathsChallenge }))} /></div>
         <button className="btn btn-primary w-full" disabled={pending || !f.name.trim()}>Save subject</button>
       </form>
     </Modal>

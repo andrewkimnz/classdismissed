@@ -86,6 +86,7 @@ const subjectSchema = z.object({
   maxScore: z.number().int().min(1).max(1000),
   rooms: z.string().max(200), // comma separated
   active: z.boolean(),
+  isMathsChallenge: z.boolean(),
 });
 type SubjectInput = z.input<typeof subjectSchema>;
 
@@ -94,9 +95,11 @@ const roomsOf = (s: string) => s.split(",").map((r) => r.trim()).filter(Boolean)
 export async function createSubject(input: SubjectInput): Promise<ActionResult> {
   return run("manage", async (ctx) => {
     const v = parse(subjectSchema, input);
+    // Only one subject runs the Maths toss challenge at a time.
+    if (v.isMathsChallenge) await ctx.sql`update subjects set is_maths_challenge = false`;
     await ctx.sql`
-      insert into subjects (name, tagline, description, activity, icon, color, max_score, rooms, active, sort_order)
-      values (${v.name}, ${v.tagline}, ${v.description}, ${v.activity}, ${v.icon}, ${v.color}, ${v.maxScore}, ${roomsOf(v.rooms)}::jsonb, ${v.active},
+      insert into subjects (name, tagline, description, activity, icon, color, max_score, rooms, active, is_maths_challenge, sort_order)
+      values (${v.name}, ${v.tagline}, ${v.description}, ${v.activity}, ${v.icon}, ${v.color}, ${v.maxScore}, ${roomsOf(v.rooms)}::jsonb, ${v.active}, ${v.isMathsChallenge},
               (select coalesce(max(sort_order), 0) + 1 from subjects))`;
     await audit(ctx, "subject.create", `Created subject ${v.name}`);
     return { message: `${v.name} added.` };
@@ -106,9 +109,10 @@ export async function createSubject(input: SubjectInput): Promise<ActionResult> 
 export async function updateSubject(input: SubjectInput & { id: number }): Promise<ActionResult> {
   return run("manage", async (ctx) => {
     const v = parse(subjectSchema.extend({ id: z.number().int().positive() }), input);
+    if (v.isMathsChallenge) await ctx.sql`update subjects set is_maths_challenge = false where id <> ${v.id}`;
     const rows = await ctx.sql`
       update subjects set name = ${v.name}, tagline = ${v.tagline}, description = ${v.description}, activity = ${v.activity},
-        icon = ${v.icon}, color = ${v.color}, max_score = ${v.maxScore}, rooms = ${roomsOf(v.rooms)}::jsonb, active = ${v.active}
+        icon = ${v.icon}, color = ${v.color}, max_score = ${v.maxScore}, rooms = ${roomsOf(v.rooms)}::jsonb, active = ${v.active}, is_maths_challenge = ${v.isMathsChallenge}
       where id = ${v.id} returning id`;
     if (!rows.length) throw new UserError("That subject no longer exists.");
     await audit(ctx, "subject.update", `Updated subject ${v.name}`, { entity: "subject", entityId: v.id, data: v });

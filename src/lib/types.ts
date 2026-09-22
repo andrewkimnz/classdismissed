@@ -70,6 +70,8 @@ export interface SubjectRow {
   rooms: string[];
   sortOrder: number;
   active: boolean;
+  /** Whichever subject this is on, that's when the Maths toss challenge runs. Normally just MATHS. */
+  isMathsChallenge: boolean;
 }
 
 export interface PeriodRow {
@@ -85,6 +87,31 @@ export interface RotationRow {
   classId: number;
   subjectId: number;
   room: string;
+}
+
+/**
+ * A student's Maths-toss-challenge progress for one period: one row, reused for every toss that
+ * period. Server-side only: `question`/`answer` must never be sent to a browser for anyone but the
+ * student it belongs to, and `answer` never at all.
+ */
+export interface MathChallengeRow {
+  id: number;
+  studentId: number;
+  periodId: number;
+  streak: number;
+  attempts: number;
+  /** Toss windows completed this period. */
+  tosses: number;
+  question: string | null;
+  answer: number | null;
+  status: "playing" | "ready";
+  /** When the current "go toss it" window opened; null while playing. */
+  wonAt: Date | null;
+  /** When a window last ended, automatically or because an exec cleared it early. */
+  lastTossedAt: Date | null;
+  lastTossedBy: number | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface ScoreRow {

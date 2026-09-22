@@ -165,8 +165,8 @@ export async function seed(conn: Db, opts: { profile: SeedProfile; demoAdmin?: b
     const subjectRows: SubjectRow[] = [];
     for (const [i, s] of SUBJECTS.entries()) {
       const [row] = await sql<SubjectRow>`
-        insert into subjects (name, tagline, description, activity, icon, color, max_score, rooms, sort_order)
-        values (${s.name}, ${s.tagline}, ${s.description}, ${s.activity}, ${s.icon}, ${s.color}, 20, ${s.rooms}::jsonb, ${i}) returning *`;
+        insert into subjects (name, tagline, description, activity, icon, color, max_score, rooms, sort_order, is_maths_challenge)
+        values (${s.name}, ${s.tagline}, ${s.description}, ${s.activity}, ${s.icon}, ${s.color}, 20, ${s.rooms}::jsonb, ${i}, ${/^maths?$/i.test(s.name)}) returning *`;
       subjectRows.push(row);
     }
     const periodRows: PeriodRow[] = [];

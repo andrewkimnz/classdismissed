@@ -12,6 +12,7 @@ export const ADMIN_NAV: { href: string; label: string; group: string }[] = [
   { href: "/admin/detention", label: "Detention", group: DURING_EVENT },
   { href: "/admin/leaderboard", label: "Leaderboard", group: "Results" },
   { href: "/admin/stats", label: "Final stats", group: "Results" },
+  { href: "/admin/math", label: "Maths tosses", group: "Results" },
   { href: "/admin/students", label: "Students", group: "Set up" },
   { href: "/admin/classes", label: "Classes", group: "Set up" },
   { href: "/admin/timetable", label: "Timetable & subjects", group: "Set up" },

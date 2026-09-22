@@ -6,6 +6,7 @@ import { Crest, Wordmark } from "@/components/ui/crest";
 import { Chip } from "@/components/ui/kit";
 import { requireStudent } from "@/lib/auth/student";
 import { getLiveState } from "@/lib/data/live";
+import { currentMathsSlot } from "@/lib/domain/math";
 import { pendingDetention } from "@/lib/domain/principal";
 import { phaseLabel } from "@/lib/domain/phases";
 
@@ -18,6 +19,7 @@ export default async function StudentLayout({ children }: { children: React.Reac
   const { student, world } = await requireStudent();
   const { event } = world;
   const detention = event.phase === "event_complete" ? null : pendingDetention(world, student.id);
+  const mathEligible = currentMathsSlot(world, student.classId) !== null;
   const supabase =
     process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
       ? { url: process.env.NEXT_PUBLIC_SUPABASE_URL, anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY }
@@ -37,7 +39,7 @@ export default async function StudentLayout({ children }: { children: React.Reac
         </header>
         <main>{detention ? <DetentionScreen detention={detention} event={event} name={student.name.split(" ")[0]} /> : children}</main>
       </div>
-      {!detention && <BottomNav phase={event.phase} />}
+      {!detention && <BottomNav phase={event.phase} mathEligible={mathEligible} />}
     </div>
   );
 }

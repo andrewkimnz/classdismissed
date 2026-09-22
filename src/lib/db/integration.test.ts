@@ -242,6 +242,9 @@ describe("start the event fresh", () => {
     await c.sql`insert into photos (kind, class_id, url, storage_path) values ('class_team', ${stu.classId}, '/uploads/t.jpg', 't.jpg')`;
     await c.sql`update students set custom_award = 'BEST FORGER' where id = ${stu.id}`;
     await c.sql`update events set scoring_locked = true, current_period = 3 where id = 1`;
+    const [period] = await c.sql<{ id: number }>`select id from periods order by number limit 1`;
+    await c.sql`insert into math_challenges (student_id, period_id, streak, question, answer, status)
+      values (${stu.id}, ${period.id}, 2, '3 + 4', 7, 'playing')`;
 
     const setup = async () => (await c.sql<Record<string, number>>`
       select (select count(*)::int from classes) as classes, (select count(*)::int from students) as students,
@@ -255,12 +258,12 @@ describe("start the event fresh", () => {
     const [stuNames0] = await c.sql<{ n: string }>`select string_agg(name || student_no || class_id, ',' order by id) as n from students`;
 
     const before = await countEventActivity(c.sql);
-    assert.ok(before.scores > 0 && before.notes > 0 && before.attempts > 0 && before.detentions > 0 && before.checkedIn > 0, "there is something to clear");
+    assert.ok(before.scores > 0 && before.notes > 0 && before.attempts > 0 && before.detentions > 0 && before.checkedIn > 0 && before.mathChallenges > 0, "there is something to clear");
     const cleared = await c.tx((sql) => resetEventData(sql));
     assert.deepEqual(cleared, before, "reports exactly what it cleared");
 
     // everything that happened is gone…
-    assert.deepEqual(await countEventActivity(c.sql), { scores: 0, notes: 0, clubCompletions: 0, attempts: 0, gradeChanges: 0, detentions: 0, checkedIn: 0 });
+    assert.deepEqual(await countEventActivity(c.sql), { scores: 0, notes: 0, clubCompletions: 0, attempts: 0, gradeChanges: 0, detentions: 0, checkedIn: 0, mathChallenges: 0 });
     const [ev] = await c.sql<{ phase: string; currentPeriod: number; scoringLocked: boolean }>`select phase, current_period, scoring_locked from events`;
     assert.deepEqual([ev.phase, ev.currentPeriod, ev.scoringLocked], ["school_day", 0, false]);
     const [award] = await c.sql<{ n: number }>`select count(*)::int as n from students where custom_award is not null`;
