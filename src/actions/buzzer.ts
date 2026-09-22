@@ -88,6 +88,21 @@ export async function clearBuzz(): Promise<ActionResult> {
   });
 }
 
+/**
+ * Ends the current trivia session and starts a new one: back to "start of round" and the scoreboard
+ * cleared. The prepared question bank is untouched — only what happened while playing it. Unlike
+ * "Start the event fresh" (which resets the whole night), this only ever touches the buzzer.
+ */
+export async function resetBuzzerRound(): Promise<ActionResult> {
+  return run("manage", async (ctx) => {
+    const [{ n }] = await ctx.sql<{ n: number }>`select count(*)::int as n from buzzer_rounds`;
+    await ctx.sql`delete from buzzer_rounds`;
+    await ctx.sql`update buzzer_state set question_number = 0, buzzed_student_id = null, buzzed_at = null, result = null where id = 1`;
+    await audit(ctx, "buzzer.reset", `Buzzer: started a new session (cleared ${n} scoreboard ${n === 1 ? "entry" : "entries"})`, { entity: "buzzer_state" });
+    return { message: "New session started. Questions are untouched." };
+  });
+}
+
 // ── question bank ────────────────────────────────────────────────────────
 const questionSchema = z.object({
   question: z.string().trim().min(1, "Enter the question").max(500),

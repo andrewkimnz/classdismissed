@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { clearBuzz, nextBuzzerQuestion, resolveBuzz } from "@/actions/buzzer";
+import { clearBuzz, nextBuzzerQuestion, resetBuzzerRound, resolveBuzz } from "@/actions/buzzer";
 import { ConfirmButton, Panel, useAct } from "@/components/admin/ui";
 import { Avatar } from "@/components/ui/avatar";
 import { ClassBadge } from "@/components/ui/kit";
@@ -101,7 +101,17 @@ export function BuzzerDesk({ state, history, questionCount }: { state: BuzzerDes
         </div>
       </Panel>
 
-      <Panel title={`Scoreboard (${history.length})`}>
+      <Panel
+        title={`Scoreboard (${history.length})`}
+        right={
+          <ConfirmButton
+            size="sm" variant="ghost" confirmLabel="Clear scoreboard & restart?" disabled={pending}
+            onConfirm={() => act(() => resetBuzzerRound())}
+          >
+            Reset session
+          </ConfirmButton>
+        }
+      >
         {history.length === 0 ? <p className="text-sm text-ink-soft">Nothing resolved yet.</p> : (
           <ul className="divide-y divide-line">
             {history.map((r) => (
