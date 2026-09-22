@@ -107,9 +107,12 @@ Design decisions worth knowing:
   another; *Maths tosses* in the staff room (admin-only; a game-master tool would be reasonable too, ask if
   you want it added) just shows the queue and can end a window early. Answers are generated and checked
   server-side and never sent to the browser.
-* **`/tv`: a big screen for the venue.** The same queue and recent-tosses list as `/math`, styled for
-  reading from across a room, with no student or admin sign-in — open it straight from a TV/Chromecast
-  browser and leave it running. It isn't linked from anywhere in the app, so it's only reachable by whoever
+* **`/tv/math`: a big screen for the venue.** The same activity feed as `/math`, styled for reading from
+  across a room, with no student or admin sign-in — open it straight from a TV/Chromecast browser and
+  leave it running. `/tv` is deliberately a folder, not a single page: the same pattern (a subject flag,
+  a student mini-game, a `/tv/<subject>` display) can be repeated for another subject — Social Studies,
+  say — as its own route under it, without touching this one. It isn't linked from anywhere in the app,
+  so it's only reachable by whoever
   has the URL; say if you'd like it behind a passphrase instead.
 
 ### Data model (`supabase/migrations/0001_schema.sql`, `0006_math_challenge.sql`)
@@ -129,7 +132,7 @@ Unique partial indexes enforce the live-event edge cases in the database itself:
 `/standings` · `/profile` · `/login` · `/l/[code]` (QR sign-in) · `/math` (Maths toss challenge + leaderboard; nav
 tab only shows while it's your class's own Maths period)
 
-**Public, no sign-in** `/tv` (Maths toss queue for a venue screen)
+**Public, no sign-in** `/tv/math` (Maths toss activity feed for a venue screen)
 
 **Staff** `/admin` (event control) · `/checkin` · `/scoring` · `/notes` · `/principal` · `/detention` ·
 `/leaderboard` · `/stats` · `/math` (Maths toss queue) · `/students` (+ `/[id]`, `/import`, `/cards` printable login cards) · `/classes` (+ `/[id]`) ·

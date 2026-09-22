@@ -9,7 +9,7 @@ export const metadata = { title: "Maths toss — display", robots: { index: fals
 // same shape — nothing here needs, or checks, who's watching. Never touches the database at build time.
 export const dynamic = "force-dynamic";
 
-export default async function TvPage() {
+export default async function TvMathPage() {
   const live = await getLiveState();
   const board = await getMathLeaderboard();
 
