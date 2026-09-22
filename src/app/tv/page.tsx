@@ -1,8 +1,6 @@
 import { TvBoard } from "@/components/tv/tv-board";
 import { getLiveState } from "@/lib/data/live";
 import { getMathLeaderboard } from "@/lib/data/math";
-import { getWorld } from "@/lib/data/world";
-import { classesInMathsNow } from "@/lib/domain/math";
 
 export const metadata = { title: "Maths toss — display", robots: { index: false, follow: false } };
 
@@ -13,7 +11,6 @@ export const dynamic = "force-dynamic";
 
 export default async function TvPage() {
   const live = await getLiveState();
-  const world = await getWorld();
   const board = await getMathLeaderboard();
 
   const waiting = board
@@ -27,7 +24,5 @@ export default async function TvPage() {
     .slice(0, 16)
     .map((r) => ({ id: r.id, name: r.studentName, className: r.className, classColor: r.classColor, tosses: r.tosses, lastTossedAt: r.lastTossedAt?.toISOString() ?? null }));
 
-  const nowClasses = classesInMathsNow(world).map((c) => ({ id: c.id, name: c.name, color: c.color }));
-
-  return <TvBoard rev={live.rev} waiting={waiting} history={history} nowClasses={nowClasses} />;
+  return <TvBoard rev={live.rev} waiting={waiting} history={history} />;
 }

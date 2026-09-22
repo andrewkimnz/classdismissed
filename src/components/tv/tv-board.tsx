@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TOSS_WINDOW_MS } from "@/lib/domain/math";
-import { cn, readableOn } from "@/lib/cn";
+import { cn } from "@/lib/cn";
 
 export interface TvWaitingEntry {
   id: number;
@@ -26,7 +26,6 @@ interface Props {
   rev: number;
   waiting: TvWaitingEntry[];
   history: TvHistoryEntry[];
-  nowClasses: { id: number; name: string; color: string }[];
 }
 
 /**
@@ -34,7 +33,7 @@ interface Props {
  * same heartbeat every phone does (poll /api/live, refresh on change) and separately re-renders once
  * a second on its own so each waiting card's countdown ticks smoothly between polls.
  */
-export function TvBoard({ rev, waiting, history, nowClasses }: Props) {
+export function TvBoard({ rev, waiting, history }: Props) {
   const router = useRouter();
   const [, setTick] = useState(0);
 
@@ -57,27 +56,11 @@ export function TvBoard({ rev, waiting, history, nowClasses }: Props) {
 
   return (
     <div className="app-bg min-h-dvh px-10 py-8 text-[var(--ink)]">
-      <header className="mb-8 flex items-center justify-between">
-        <div>
-          <div className="display text-[56px] leading-none">
-            KAC <span className="text-dragon-outline">ACADEMY</span>
-          </div>
-          <div className="label mt-1 text-2xl tracking-[0.3em]">Maths toss challenge</div>
+      <header className="mb-8">
+        <div className="display text-[56px] leading-none">
+          KAC <span className="text-dragon-outline">ACADEMY</span>
         </div>
-        <div className="text-right">
-          <div className="label text-xl">Live at the Maths table{nowClasses.length !== 1 ? "s" : ""}</div>
-          <div className="mt-1 flex flex-wrap justify-end gap-2">
-            {nowClasses.length === 0 ? (
-              <span className="rounded-full border-2 border-line bg-white px-4 py-1.5 text-lg font-bold text-ink-soft">Nobody's in Maths right now</span>
-            ) : (
-              nowClasses.map((c) => (
-                <span key={c.id} className="rounded-full border-2 border-ink px-4 py-1.5 text-xl font-extrabold" style={{ background: c.color, color: readableOn(c.color) }}>
-                  {c.name}
-                </span>
-              ))
-            )}
-          </div>
-        </div>
+        <div className="label mt-1 text-2xl tracking-[0.3em]">Math Class</div>
       </header>
 
       <section className="mb-8">
