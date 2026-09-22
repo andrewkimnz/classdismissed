@@ -1,19 +1,22 @@
 import { BuzzerDesk } from "@/components/admin/buzzer-desk";
 import { PageHeader } from "@/components/admin/ui";
-import { getBuzzerHistory, getBuzzerLive } from "@/lib/data/buzzer";
+import { getBuzzerAdminLive, getBuzzerHistory, getBuzzerQuestions } from "@/lib/data/buzzer";
 import { requireAdminPage } from "@/lib/auth/admin";
 
 export const metadata = { title: "Buzzer" };
 
 export default async function BuzzerAdminPage() {
   await requireAdminPage("manage");
-  const [state, history] = await Promise.all([getBuzzerLive(), getBuzzerHistory(50)]);
+  const [state, history, questions] = await Promise.all([getBuzzerAdminLive(), getBuzzerHistory(50), getBuzzerQuestions()]);
   return (
     <>
       <PageHeader title="Buzzer" hint="run the trivia round" />
       <BuzzerDesk
         state={{
           questionNumber: state.questionNumber,
+          questionText: state.questionText,
+          choices: state.choices,
+          correctIndex: state.correctIndex,
           buzzedStudentId: state.buzzedStudentId,
           buzzedStudentName: state.buzzedStudentName,
           className: state.className,
@@ -23,9 +26,10 @@ export default async function BuzzerAdminPage() {
           result: state.result,
         }}
         history={history.map((r) => ({
-          id: r.id, questionNumber: r.questionNumber, studentName: r.studentName, className: r.className, classColor: r.classColor,
+          id: r.id, questionNumber: r.questionNumber, questionText: r.questionText, studentName: r.studentName, className: r.className, classColor: r.classColor,
           result: r.result, resolvedAt: r.resolvedAt.toISOString(),
         }))}
+        questionCount={questions.length}
       />
     </>
   );

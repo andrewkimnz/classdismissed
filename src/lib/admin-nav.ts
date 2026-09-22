@@ -18,6 +18,7 @@ export const ADMIN_NAV: { href: string; label: string; group: string }[] = [
   { href: "/admin/classes", label: "Classes", group: "Set up" },
   { href: "/admin/timetable", label: "Timetable & subjects", group: "Set up" },
   { href: "/admin/clubs", label: "Clubs", group: "Set up" },
+  { href: "/admin/buzzer/questions", label: "Buzzer questions", group: "Set up" },
   { href: "/admin/settings", label: "Rules & settings", group: "Set up" },
   { href: "/admin/staff", label: "Staff accounts", group: "Set up" },
   { href: "/admin/activity", label: "Activity log", group: "Set up" },

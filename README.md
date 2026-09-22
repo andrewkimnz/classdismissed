@@ -116,6 +116,14 @@ Design decisions worth knowing:
   win (a dedicated test hammers this with real concurrent connections). The exec marks them correct or
   wrong, which logs to a running per-class scoreboard, then moves on; **Clear** undoes a mis-tap without
   touching the scoreboard or the question number.
+  *Questions* under Set up is a multiple-choice question bank (2–6 choices, one marked correct, reorder
+  with ▲▼): "question N" in the round is simply the Nth one there, in play order. It's entirely
+  optional — advancing past the end of the bank, or never adding any questions, just falls back to a
+  generic "buzz in" prompt and the exec asking their own, exactly as it worked before this existed. The
+  correct answer only ever reaches an admin's screen (or a public one *after* a buzz is resolved,
+  matching how the room finds out for real) — never the student app or the TV beforehand. Editing or
+  deleting a question never rewrites the scoreboard: each resolved round snapshots the question text it
+  was actually asked with, in `buzzer_rounds.question_text`.
 * **`/tv/math` and `/tv/buzzer`: big screens for the venue.** No student or admin sign-in — open one
   straight from a TV/Chromecast browser and leave it running. `/tv` is deliberately a folder, not a
   single page: the same pattern (a subject flag, a student mini-game, a `/tv/<subject>` display) can be
@@ -126,14 +134,15 @@ Design decisions worth knowing:
   to. Neither is linked from anywhere in the app, so each is only reachable by whoever has the URL; say
   if you'd like either behind a passphrase instead.
 
-### Data model (`supabase/migrations/0001_schema.sql`, `0006_math_challenge.sql`, `0007_buzzer.sql`)
+### Data model (`supabase/migrations/0001_schema.sql`, `0006_math_challenge.sql`, `0007_buzzer.sql`, `0008_buzzer_questions.sql`)
 
 `events` (single row: identity, phase, every configurable rule) · `admins` · `classes` · `students` ·
 `subjects` (+ `is_maths_challenge`, `is_buzzer_challenge`) · `periods` · `rotations` (period × class → subject + room) ·
 `class_subject_scores` · `grade_boundaries` · `clubs` · `club_completions` · `teacher_notes` · `risk_tiers` ·
 `principal_attempts` (with tier snapshots) · `grade_modifications` · `detentions` · `photos` · `audit_log` ·
 `live_state` · `math_challenges` (one row per student per period: streak, current question, status) ·
-`buzzer_state` (single row: the live round) · `buzzer_rounds` (the scoreboard: one row per resolved question).
+`buzzer_state` (single row: the live round) · `buzzer_rounds` (the scoreboard: one row per resolved
+question, with a snapshot of the question text) · `buzzer_questions` (the prepared multiple-choice bank).
 
 Unique partial indexes enforce the live-event edge cases in the database itself: one active completion and one active note per
 **class** per club (double-tap safe), one current photo per student/kind.
@@ -149,7 +158,7 @@ shows while it's your class's own Social Studies period)
 
 **Staff** `/admin` (event control) · `/checkin` · `/scoring` · `/notes` · `/principal` · `/detention` ·
 `/leaderboard` · `/stats` · `/math` (Maths toss queue) · `/buzzer` (run the trivia round) · `/students` (+ `/[id]`, `/import`, `/cards` printable login cards) · `/classes` (+ `/[id]`) ·
-`/timetable` (times, matrix, subjects) · `/clubs` · `/settings` (rules, grade boundaries, risk tiers, reset) · `/staff` · `/activity`
+`/timetable` (times, matrix, subjects) · `/clubs` · `/buzzer/questions` (the trivia question bank) · `/settings` (rules, grade boundaries, risk tiers, reset) · `/staff` · `/activity`
 
 ---
 

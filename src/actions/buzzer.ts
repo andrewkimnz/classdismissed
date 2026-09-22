@@ -3,8 +3,18 @@
 import { z } from "zod";
 import { audit, parse, run, runAsStudent, UserError, type ActionResult } from "@/lib/actions";
 import { rateLimited } from "@/lib/auth/rate-limit";
+import type { Sql } from "@/lib/db/sql";
 import { getWorld } from "@/lib/data/world";
 import { currentBuzzerSlot } from "@/lib/domain/buzzer";
+
+const id = z.number().int().positive();
+
+/** The prepared bank is just an ordered list: "question N" in the round is whichever one is Nth here. */
+async function questionTextAt(sql: Sql, n: number): Promise<string | null> {
+  if (n < 1) return null;
+  const [row] = await sql<{ question: string }>`select question from buzzer_questions order by sort_order, id offset ${n - 1} limit 1`;
+  return row?.question ?? null;
+}
 
 /** A student buzzes in. The first one to reach the database wins — the UPDATE's WHERE clause is what
  * makes that atomic: only a request that finds the round still unclaimed can claim it. */
@@ -36,9 +46,10 @@ export async function nextBuzzerQuestion(): Promise<ActionResult> {
       select question_number, buzzed_student_id, result from buzzer_state where id = 1`;
     if (state.buzzedStudentId !== null && state.result === null) {
       const [student] = await ctx.sql<{ classId: number | null }>`select class_id from students where id = ${state.buzzedStudentId}`;
+      const text = await questionTextAt(ctx.sql, state.questionNumber);
       await ctx.sql`
-        insert into buzzer_rounds (question_number, student_id, class_id, buzzed_at, result, resolved_by)
-        values (${state.questionNumber}, ${state.buzzedStudentId}, ${student?.classId ?? null}, now(), 'unanswered', ${ctx.actor.id})`;
+        insert into buzzer_rounds (question_number, student_id, class_id, buzzed_at, result, resolved_by, question_text)
+        values (${state.questionNumber}, ${state.buzzedStudentId}, ${student?.classId ?? null}, now(), 'unanswered', ${ctx.actor.id}, ${text})`;
     }
     const next = state.questionNumber + 1;
     await ctx.sql`update buzzer_state set question_number = ${next}, buzzed_student_id = null, buzzed_at = null, result = null where id = 1`;
@@ -56,10 +67,11 @@ export async function resolveBuzz(input: { result: "correct" | "wrong" }): Promi
     if (state.buzzedStudentId === null) throw new UserError("Nobody's buzzed in yet.");
     if (state.result !== null) throw new UserError("Already marked.");
     const [student] = await ctx.sql<{ name: string; classId: number | null }>`select name, class_id from students where id = ${state.buzzedStudentId}`;
+    const text = await questionTextAt(ctx.sql, state.questionNumber);
     await ctx.sql`update buzzer_state set result = ${v.result} where id = 1`;
     await ctx.sql`
-      insert into buzzer_rounds (question_number, student_id, class_id, buzzed_at, result, resolved_by)
-      values (${state.questionNumber}, ${state.buzzedStudentId}, ${student?.classId ?? null}, now(), ${v.result}, ${ctx.actor.id})`;
+      insert into buzzer_rounds (question_number, student_id, class_id, buzzed_at, result, resolved_by, question_text)
+      values (${state.questionNumber}, ${state.buzzedStudentId}, ${student?.classId ?? null}, now(), ${v.result}, ${ctx.actor.id}, ${text})`;
     await audit(ctx, "buzzer.resolve", `Buzzer Q${state.questionNumber}: ${student?.name ?? "a student"} marked ${v.result}`, { entity: "buzzer_state" });
     return { message: `Marked ${v.result}.` };
   });
@@ -73,5 +85,68 @@ export async function clearBuzz(): Promise<ActionResult> {
     if (!rows.length) throw new UserError("Nobody's buzzed in.");
     await audit(ctx, "buzzer.clear", "Buzzer: cleared the buzz, open again", { entity: "buzzer_state" });
     return { message: "Cleared. Buzzing is open again for this question." };
+  });
+}
+
+// ── question bank ────────────────────────────────────────────────────────
+const questionSchema = z.object({
+  question: z.string().trim().min(1, "Enter the question").max(500),
+  choices: z.array(z.string().trim().min(1, "Choices can't be empty").max(200)).min(2, "At least 2 choices").max(6, "At most 6 choices"),
+  correctIndex: z.number().int().min(0),
+});
+type QuestionInput = z.input<typeof questionSchema>;
+
+function checkCorrectIndex(v: { choices: string[]; correctIndex: number }) {
+  if (v.correctIndex >= v.choices.length) throw new UserError("Pick which choice is correct.");
+}
+
+export async function createBuzzerQuestion(input: QuestionInput): Promise<ActionResult> {
+  return run("manage", async (ctx) => {
+    const v = parse(questionSchema, input);
+    checkCorrectIndex(v);
+    await ctx.sql`
+      insert into buzzer_questions (question, choices, correct_index, sort_order)
+      values (${v.question}, ${v.choices}::jsonb, ${v.correctIndex}, (select coalesce(max(sort_order), 0) + 1 from buzzer_questions))`;
+    await audit(ctx, "buzzer.question.create", `Buzzer question added: ${v.question.slice(0, 60)}`);
+    return { message: "Question added." };
+  });
+}
+
+export async function updateBuzzerQuestion(input: QuestionInput & { id: number }): Promise<ActionResult> {
+  return run("manage", async (ctx) => {
+    const v = parse(questionSchema.extend({ id }), input);
+    checkCorrectIndex(v);
+    const rows = await ctx.sql`
+      update buzzer_questions set question = ${v.question}, choices = ${v.choices}::jsonb, correct_index = ${v.correctIndex}
+      where id = ${v.id} returning id`;
+    if (!rows.length) throw new UserError("That question no longer exists.");
+    await audit(ctx, "buzzer.question.update", `Buzzer question updated: ${v.question.slice(0, 60)}`, { entity: "buzzer_question", entityId: v.id });
+    return { message: "Question saved." };
+  });
+}
+
+export async function deleteBuzzerQuestion(input: { id: number }): Promise<ActionResult> {
+  return run("manage", async (ctx) => {
+    const v = parse(z.object({ id }), input);
+    const rows = await ctx.sql<{ question: string }>`delete from buzzer_questions where id = ${v.id} returning question`;
+    if (!rows.length) throw new UserError("Already deleted.");
+    await audit(ctx, "buzzer.question.delete", `Buzzer question deleted: ${rows[0].question.slice(0, 60)}`);
+    return { message: "Question deleted. Rounds already played keep their own record of what was asked." };
+  });
+}
+
+/** Swaps this question's play position with its neighbour. */
+export async function moveBuzzerQuestion(input: { id: number; direction: "up" | "down" }): Promise<ActionResult> {
+  return run("manage", async (ctx) => {
+    const v = parse(z.object({ id, direction: z.enum(["up", "down"]) }), input);
+    const rows = await ctx.sql<{ id: number; sortOrder: number }>`select id, sort_order from buzzer_questions order by sort_order, id`;
+    const i = rows.findIndex((r) => r.id === v.id);
+    if (i === -1) throw new UserError("That question no longer exists.");
+    const j = v.direction === "up" ? i - 1 : i + 1;
+    if (j < 0 || j >= rows.length) return { message: "Already at the end." };
+    const [a, b] = [rows[i], rows[j]];
+    await ctx.sql`update buzzer_questions set sort_order = ${b.sortOrder} where id = ${a.id}`;
+    await ctx.sql`update buzzer_questions set sort_order = ${a.sortOrder} where id = ${b.id}`;
+    return { message: "Reordered." };
   });
 }

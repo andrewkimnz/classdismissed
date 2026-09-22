@@ -4,6 +4,8 @@ import { useLiveReload } from "@/components/use-live-reload";
 import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/cn";
 
+const LETTERS = ["A", "B", "C", "D", "E", "F"];
+
 export interface TvTally {
   classId: number;
   className: string;
@@ -15,6 +17,10 @@ export interface TvTally {
 interface Props {
   rev: number;
   questionNumber: number;
+  questionText: string | null;
+  choices: string[] | null;
+  /** Only non-null once a buzz on this question has been resolved — see src/lib/data/buzzer.ts. */
+  correctIndex: number | null;
   buzzedStudentId: number | null;
   buzzedStudentName: string | null;
   className: string | null;
@@ -25,7 +31,9 @@ interface Props {
 }
 
 /** A passive, unauthenticated screen: no student or admin session, nothing to click. */
-export function BuzzerBoard({ rev, questionNumber, buzzedStudentId, buzzedStudentName, className, classColor, photoUrl, result, tally }: Props) {
+export function BuzzerBoard({
+  rev, questionNumber, questionText, choices, correctIndex, buzzedStudentId, buzzedStudentName, className, classColor, photoUrl, result, tally,
+}: Props) {
   useLiveReload(rev, 1500);
 
   return (
@@ -37,35 +45,62 @@ export function BuzzerBoard({ rev, questionNumber, buzzedStudentId, buzzedStuden
         <div className="label mt-1 text-2xl tracking-[0.3em]">Social Studies</div>
       </header>
 
-      <section className="mb-8">
+      <section className="mb-6">
         {questionNumber < 1 ? (
           <div className="card bg-white p-12 text-center">
             <div className="text-6xl">🔔</div>
             <div className="display mt-2 text-4xl">Waiting for the round to start…</div>
           </div>
-        ) : buzzedStudentId === null ? (
+        ) : questionText && choices ? (
+          <div className="card bg-white p-8">
+            <div className="label mb-2 text-xl">Question {questionNumber}</div>
+            <div className="display text-4xl leading-tight">{questionText}</div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              {choices.map((c, i) => (
+                <div
+                  key={i}
+                  className={cn(
+                    "flex items-center gap-3 rounded-2xl border-4 p-4 text-2xl font-extrabold transition-colors",
+                    i === correctIndex ? "border-mint bg-mint/30" : "border-line bg-white",
+                  )}
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-ink text-lg">{LETTERS[i]}</span>
+                  <span className="min-w-0 truncate">{c}</span>
+                  {i === correctIndex && <span className="ml-auto text-3xl">✅</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
           <div className="card bg-white p-12 text-center">
             <div className="label mb-2 text-2xl">Question {questionNumber}</div>
             <div className="text-7xl">🔔</div>
             <div className="display mt-2 text-5xl">Buzz in!</div>
           </div>
-        ) : (
-          <div className={cn("card overflow-hidden border-4 border-ink p-10 text-center", result === "correct" ? "bg-mint/40" : result === "wrong" ? "bg-pen/15" : "bg-sun")}>
-            <div className="label mb-4 text-2xl">Question {questionNumber}</div>
-            <Avatar
-              student={{ id: buzzedStudentId, name: buzzedStudentName ?? "Student", photoUrl }}
-              className="mx-auto h-56 w-48 rounded-2xl border-4 border-ink shadow-[0_6px_0_var(--ink)]"
-            />
-            <div className="display mt-5 text-7xl leading-none">{buzzedStudentName}</div>
-            {className && (
-              <span className="mt-3 inline-block rounded-full border-2 border-ink px-4 py-1.5 text-xl font-extrabold" style={{ background: classColor ?? "#fff" }}>
-                {className}
-              </span>
-            )}
-            {result && <div className="display mt-4 text-4xl uppercase">{result === "correct" ? "✅ Correct!" : "❌ Wrong"}</div>}
-          </div>
         )}
       </section>
+
+      {buzzedStudentId !== null && (
+        <section className="mb-6">
+          <div className={cn("card overflow-hidden border-4 border-ink p-6 text-center", result === "correct" ? "bg-mint/40" : result === "wrong" ? "bg-pen/15" : "bg-sun")}>
+            <div className="flex items-center justify-center gap-5">
+              <Avatar
+                student={{ id: buzzedStudentId, name: buzzedStudentName ?? "Student", photoUrl }}
+                className="h-32 w-28 shrink-0 rounded-2xl border-4 border-ink shadow-[0_5px_0_var(--ink)]"
+              />
+              <div className="text-left">
+                <div className="display text-5xl leading-none">{buzzedStudentName}</div>
+                {className && (
+                  <span className="mt-2 inline-block rounded-full border-2 border-ink px-3 py-1 text-lg font-extrabold" style={{ background: classColor ?? "#fff" }}>
+                    {className}
+                  </span>
+                )}
+                {result && <div className="display mt-1 text-3xl uppercase">{result === "correct" ? "✅ Correct!" : "❌ Wrong"}</div>}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {tally.length > 0 && (
         <section>

@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  Calculator, CalendarDays, Flower2, Gauge, History, Landmark, LogOut, Menu, PenLine, School, Settings, Siren, Sparkles, StickyNote, Trophy, UserCheck, UserCog, Users, X, Zap,
+  Calculator, CalendarDays, Flower2, Gauge, History, Landmark, ListChecks, LogOut, Menu, PenLine, School, Settings, Siren, Sparkles, StickyNote, Trophy, UserCheck, UserCog, Users, X, Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -14,7 +14,7 @@ import { visibleNav } from "@/lib/admin-nav";
 const ICONS: Record<string, typeof Gauge> = {
   "/admin": Gauge, "/admin/checkin": UserCheck, "/admin/scoring": PenLine, "/admin/notes": StickyNote, "/admin/principal": Landmark,
   "/admin/detention": Siren, "/admin/leaderboard": Trophy, "/admin/stats": Sparkles, "/admin/math": Calculator, "/admin/buzzer": Zap, "/admin/students": Users, "/admin/classes": School,
-  "/admin/timetable": CalendarDays, "/admin/clubs": Flower2, "/admin/settings": Settings, "/admin/staff": UserCog, "/admin/activity": History,
+  "/admin/timetable": CalendarDays, "/admin/clubs": Flower2, "/admin/buzzer/questions": ListChecks, "/admin/settings": Settings, "/admin/staff": UserCog, "/admin/activity": History,
 };
 
 // Mobile quick bar: the tools used all night. Admins get Control first; game masters only ever see their own four.

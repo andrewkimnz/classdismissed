@@ -14,6 +14,9 @@ export default async function TvBuzzerPage() {
     <BuzzerBoard
       rev={live.rev}
       questionNumber={state.questionNumber}
+      questionText={state.questionText}
+      choices={state.choices}
+      correctIndex={state.correctIndex}
       buzzedStudentId={state.buzzedStudentId}
       buzzedStudentName={state.buzzedStudentName}
       className={state.className}
