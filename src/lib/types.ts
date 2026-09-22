@@ -72,6 +72,8 @@ export interface SubjectRow {
   active: boolean;
   /** Whichever subject this is on, that's when the Maths toss challenge runs. Normally just MATHS. */
   isMathsChallenge: boolean;
+  /** Whichever subject this is on, that's when the Buzzer round runs. Normally just SOCIAL STUDIES. */
+  isBuzzerChallenge: boolean;
 }
 
 export interface PeriodRow {

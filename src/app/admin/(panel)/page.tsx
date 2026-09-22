@@ -8,6 +8,7 @@ import { sql } from "@/lib/db/client";
 import { countEventActivity } from "@/lib/reset";
 import { getWorld } from "@/lib/data/world";
 import { getMathLeaderboard } from "@/lib/data/math";
+import { getBuzzerLive } from "@/lib/data/buzzer";
 import { computeStandings, formatPct } from "@/lib/domain/grades";
 import { formatEventDate, timeAgo } from "@/lib/domain/time";
 
@@ -27,6 +28,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
   const cells = w.classes.length * w.subjects.filter((s) => s.active).length;
   const marked = w.scores.length;
   const readyToToss = (await getMathLeaderboard()).filter((r) => r.waiting).length;
+  const buzzer = await getBuzzerLive();
   const tiles: { label: string; value: string; href: string; hot?: boolean }[] = [
     { label: "Checked in", value: `${present}/${w.students.length}`, href: "/admin/checkin" },
     { label: "Scores entered", value: `${marked}/${cells}`, href: "/admin/scoring" },
@@ -35,6 +37,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
     { label: "In detention", value: String(detained), href: "/admin/detention", hot: detained > 0 },
     { label: "Leader", value: standings[0]?.currentPct !== null ? `${standings[0]?.klass.name} ${formatPct(standings[0]?.currentPct ?? null)}` : "—", href: "/admin/leaderboard" },
     { label: "Waiting to toss", value: String(readyToToss), href: "/admin/math", hot: readyToToss > 0 },
+    { label: "Buzzer", value: buzzer.questionNumber > 0 ? `Q${buzzer.questionNumber}` : "—", href: "/admin/buzzer", hot: buzzer.buzzedStudentId !== null && buzzer.result === null },
   ];
   return (
     <>

@@ -6,6 +6,7 @@ import { Crest, Wordmark } from "@/components/ui/crest";
 import { Chip } from "@/components/ui/kit";
 import { requireStudent } from "@/lib/auth/student";
 import { getLiveState } from "@/lib/data/live";
+import { currentBuzzerSlot } from "@/lib/domain/buzzer";
 import { currentMathsSlot } from "@/lib/domain/math";
 import { pendingDetention } from "@/lib/domain/principal";
 import { phaseLabel } from "@/lib/domain/phases";
@@ -20,6 +21,7 @@ export default async function StudentLayout({ children }: { children: React.Reac
   const { event } = world;
   const detention = event.phase === "event_complete" ? null : pendingDetention(world, student.id);
   const mathEligible = currentMathsSlot(world, student.classId) !== null;
+  const buzzerEligible = currentBuzzerSlot(world, student.classId) !== null;
   const supabase =
     process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
       ? { url: process.env.NEXT_PUBLIC_SUPABASE_URL, anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY }
@@ -39,7 +41,7 @@ export default async function StudentLayout({ children }: { children: React.Reac
         </header>
         <main>{detention ? <DetentionScreen detention={detention} event={event} name={student.name.split(" ")[0]} /> : children}</main>
       </div>
-      {!detention && <BottomNav phase={event.phase} mathEligible={mathEligible} />}
+      {!detention && <BottomNav phase={event.phase} mathEligible={mathEligible} buzzerEligible={buzzerEligible} />}
     </div>
   );
 }

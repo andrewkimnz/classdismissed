@@ -151,6 +151,10 @@ export async function seed(conn: Db, opts: { profile: SeedProfile; demoAdmin?: b
     await sql`delete from events`;
     await sql`insert into events (id, event_date, timezone, phase, current_period)
       values (1, ${EVENT_DATE}::date, ${TZ}, ${profile === "demo" ? "after_school" : "school_day"}, ${profile === "demo" ? 5 : 0})`;
+    // buzzer_state's singleton row (id = 1) is a foreign-key child of students/periods, so the CASCADE
+    // above truncates it too: put it back, freshly reset, every time.
+    await sql`insert into buzzer_state (id) values (1) on conflict (id) do update set
+      question_number = 0, buzzed_student_id = null, buzzed_at = null, result = null`;
 
     // ── configuration ────────────────────────────────────────────────────
     for (const [grade, min] of BOUNDARIES) {
@@ -165,8 +169,8 @@ export async function seed(conn: Db, opts: { profile: SeedProfile; demoAdmin?: b
     const subjectRows: SubjectRow[] = [];
     for (const [i, s] of SUBJECTS.entries()) {
       const [row] = await sql<SubjectRow>`
-        insert into subjects (name, tagline, description, activity, icon, color, max_score, rooms, sort_order, is_maths_challenge)
-        values (${s.name}, ${s.tagline}, ${s.description}, ${s.activity}, ${s.icon}, ${s.color}, 20, ${s.rooms}::jsonb, ${i}, ${/^maths?$/i.test(s.name)}) returning *`;
+        insert into subjects (name, tagline, description, activity, icon, color, max_score, rooms, sort_order, is_maths_challenge, is_buzzer_challenge)
+        values (${s.name}, ${s.tagline}, ${s.description}, ${s.activity}, ${s.icon}, ${s.color}, 20, ${s.rooms}::jsonb, ${i}, ${/^maths?$/i.test(s.name)}, ${/^social\s*studies$/i.test(s.name)}) returning *`;
       subjectRows.push(row);
     }
     const periodRows: PeriodRow[] = [];

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useLiveReload } from "@/components/use-live-reload";
 import { TOSS_WINDOW_MS } from "@/lib/domain/math";
 import { cn } from "@/lib/cn";
 
@@ -34,25 +34,14 @@ interface Props {
  * a second on its own so each waiting card's countdown ticks smoothly between polls.
  */
 export function TvBoard({ rev, waiting, history }: Props) {
-  const router = useRouter();
+  useLiveReload(rev, 2000);
   const [, setTick] = useState(0);
 
+  // A separate 1 s clock, just to re-render each waiting card's countdown text between polls.
   useEffect(() => {
-    const poll = setInterval(async () => {
-      try {
-        const res = await fetch("/api/live", { cache: "no-store" });
-        const data = (await res.json()) as { rev: number };
-        if (data.rev !== rev) router.refresh();
-      } catch {
-        /* try again next tick */
-      }
-    }, 2000);
     const clock = setInterval(() => setTick((t) => t + 1), 1000);
-    return () => {
-      clearInterval(poll);
-      clearInterval(clock);
-    };
-  }, [rev, router]);
+    return () => clearInterval(clock);
+  }, []);
 
   return (
     <div className="app-bg min-h-dvh px-10 py-8 text-[var(--ink)]">

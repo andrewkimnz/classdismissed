@@ -107,21 +107,33 @@ Design decisions worth knowing:
   another; *Maths tosses* in the staff room (admin-only; a game-master tool would be reasonable too, ask if
   you want it added) just shows the queue and can end a window early. Answers are generated and checked
   server-side and never sent to the browser.
-* **`/tv/math`: a big screen for the venue.** The same activity feed as `/math`, styled for reading from
-  across a room, with no student or admin sign-in — open it straight from a TV/Chromecast browser and
-  leave it running. `/tv` is deliberately a folder, not a single page: the same pattern (a subject flag,
-  a student mini-game, a `/tv/<subject>` display) can be repeated for another subject — Social Studies,
-  say — as its own route under it, without touching this one. It isn't linked from anywhere in the app,
-  so it's only reachable by whoever
-  has the URL; say if you'd like it behind a passphrase instead.
+* **Buzzer round.** Whichever subject is flagged `is_buzzer_challenge` (SOCIAL STUDIES by default, same
+  one-at-a-time toggle as Maths) gets live trivia: while a class is in that subject, students see a
+  **Buzzer** tab with one big button. An exec on *Buzzer* in the staff room (admin-only; same note as
+  Maths tosses about adding game-master access) presses **Start the round**, then **Next question** to
+  move through Q1, Q2, … Whoever buzzes first is locked in — server-side, by an atomic
+  `UPDATE … WHERE buzzed_student_id IS NULL`, so two buzzes at the exact same instant can never both
+  win (a dedicated test hammers this with real concurrent connections). The exec marks them correct or
+  wrong, which logs to a running per-class scoreboard, then moves on; **Clear** undoes a mis-tap without
+  touching the scoreboard or the question number.
+* **`/tv/math` and `/tv/buzzer`: big screens for the venue.** No student or admin sign-in — open one
+  straight from a TV/Chromecast browser and leave it running. `/tv` is deliberately a folder, not a
+  single page: the same pattern (a subject flag, a student mini-game, a `/tv/<subject>` display) can be
+  repeated for another subject as its own route under it, without touching the others — this is exactly
+  how Buzzer was added alongside Math. `/tv/buzzer` shows the ID photo of whoever's buzzed in, which is
+  the one place in the app any of that shows on an unauthenticated screen; it's the same name/class/photo
+  every classmate can already see, shown here so the exec running the show knows who to hand the question
+  to. Neither is linked from anywhere in the app, so each is only reachable by whoever has the URL; say
+  if you'd like either behind a passphrase instead.
 
-### Data model (`supabase/migrations/0001_schema.sql`, `0006_math_challenge.sql`)
+### Data model (`supabase/migrations/0001_schema.sql`, `0006_math_challenge.sql`, `0007_buzzer.sql`)
 
 `events` (single row: identity, phase, every configurable rule) · `admins` · `classes` · `students` ·
-`subjects` (+ `is_maths_challenge`) · `periods` · `rotations` (period × class → subject + room) ·
+`subjects` (+ `is_maths_challenge`, `is_buzzer_challenge`) · `periods` · `rotations` (period × class → subject + room) ·
 `class_subject_scores` · `grade_boundaries` · `clubs` · `club_completions` · `teacher_notes` · `risk_tiers` ·
 `principal_attempts` (with tier snapshots) · `grade_modifications` · `detentions` · `photos` · `audit_log` ·
-`live_state` · `math_challenges` (one row per student per period: streak, current question, status).
+`live_state` · `math_challenges` (one row per student per period: streak, current question, status) ·
+`buzzer_state` (single row: the live round) · `buzzer_rounds` (the scoreboard: one row per resolved question).
 
 Unique partial indexes enforce the live-event edge cases in the database itself: one active completion and one active note per
 **class** per club (double-tap safe), one current photo per student/kind.
@@ -130,12 +142,13 @@ Unique partial indexes enforce the live-event edge cases in the database itself:
 
 **Student** `/` (Home: changes by phase, and is the timetable during School Day) · `/clubs` · `/clubs/[id]` · `/class` ·
 `/standings` · `/profile` · `/login` · `/l/[code]` (QR sign-in) · `/math` (Maths toss challenge + leaderboard; nav
-tab only shows while it's your class's own Maths period)
+tab only shows while it's your class's own Maths period) · `/buzzer` (live trivia buzzer; nav tab only
+shows while it's your class's own Social Studies period)
 
-**Public, no sign-in** `/tv/math` (Maths toss activity feed for a venue screen)
+**Public, no sign-in** `/tv/math` (Maths toss activity feed) · `/tv/buzzer` (Buzzer round) — both for a venue screen
 
 **Staff** `/admin` (event control) · `/checkin` · `/scoring` · `/notes` · `/principal` · `/detention` ·
-`/leaderboard` · `/stats` · `/math` (Maths toss queue) · `/students` (+ `/[id]`, `/import`, `/cards` printable login cards) · `/classes` (+ `/[id]`) ·
+`/leaderboard` · `/stats` · `/math` (Maths toss queue) · `/buzzer` (run the trivia round) · `/students` (+ `/[id]`, `/import`, `/cards` printable login cards) · `/classes` (+ `/[id]`) ·
 `/timetable` (times, matrix, subjects) · `/clubs` · `/settings` (rules, grade boundaries, risk tiers, reset) · `/staff` · `/activity`
 
 ---

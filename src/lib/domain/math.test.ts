@@ -51,7 +51,7 @@ describe("Maths toss challenge: eligibility", () => {
   const period = (n: number): PeriodRow => ({ id: n, number: n, startsAt: new Date(0), endsAt: new Date(0) });
   const klass: ClassRow = { id: 1, name: "2-B", color: "#000", sortOrder: 0, teamPhotoUrl: null };
   const maths: SubjectRow = {
-    id: 1, name: "MATHS", tagline: "", description: "", activity: "", icon: "➗", color: "#000", maxScore: 20, rooms: [], sortOrder: 0, active: true, isMathsChallenge: true,
+    id: 1, name: "MATHS", tagline: "", description: "", activity: "", icon: "➗", color: "#000", maxScore: 20, rooms: [], sortOrder: 0, active: true, isMathsChallenge: true, isBuzzerChallenge: false,
   };
   const history: SubjectRow = { ...maths, id: 2, name: "HISTORY", isMathsChallenge: false };
   const rotation = (periodId: number, subjectId: number): RotationRow => ({ id: periodId, periodId, classId: klass.id, subjectId, room: "" });

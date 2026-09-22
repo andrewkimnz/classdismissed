@@ -13,7 +13,7 @@ export function StartFreshPanel({ counts }: { counts: ResetCounts }) {
   const items: [number, string][] = [
     [counts.scores, "class scores"], [counts.notes, "Teacher’s Notes"], [counts.clubCompletions, "club completions"],
     [counts.attempts, "Principal’s Office attempts"], [counts.gradeChanges, "grade changes"], [counts.detentions, "detentions"], [counts.checkedIn, "check-ins"],
-    [counts.mathChallenges, "Maths toss attempts"],
+    [counts.mathChallenges, "Maths toss attempts"], [counts.buzzerRounds, "Buzzer questions answered"],
   ];
   const nothing = items.every(([n]) => n === 0);
   return (

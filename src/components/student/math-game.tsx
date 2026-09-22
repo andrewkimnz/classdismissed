@@ -27,6 +27,9 @@ export function MathGame({ status, streak, question, wonAt, tosses }: Props) {
   const [pending, start] = useTransition();
   const [value, setValue] = useState("");
   const [flash, setFlash] = useState<"correct" | "wrong" | null>(null);
+  // A stale "Correct!" from the winning answer must not still be showing under the FIRST new
+  // question once the toss window auto-expires and hands over a fresh one.
+  useEffect(() => setFlash(null), [question]);
 
   if (status === "ready" && wonAt) return <TossWindow wonAt={wonAt} tosses={tosses} />;
 

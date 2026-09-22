@@ -1,31 +1,17 @@
-import type { SubjectRow, World } from "@/lib/types";
-import { classTimetable, currentAndNext } from "./timetable";
+import type { World } from "@/lib/types";
+import { currentSubjectSlot, subjectStatusForClass, type SubjectSlot } from "./timetable";
 
-export interface MathSlot {
-  periodId: number;
-  subject: SubjectRow;
-}
+export type MathSlot = SubjectSlot;
 
-/**
- * Is this class, right now, in the subject that runs the Maths toss challenge? Only during School
- * Day (After School and Event Complete have no periods running). A student with no class yet
- * (checked in without one assigned) is never eligible.
- */
+/** Is this class, right now, in the subject that runs the Maths toss challenge? */
 export function currentMathsSlot(w: World, classId: number | null): MathSlot | null {
-  if (w.event.phase !== "school_day" || classId === null) return null;
-  const { current } = currentAndNext(classTimetable(w, classId));
-  if (!current?.subject?.isMathsChallenge) return null;
-  return { periodId: current.period.id, subject: current.subject };
+  return currentSubjectSlot(w, classId, (s) => s.isMathsChallenge);
 }
 
 /** Why a class can't play right now, for a friendly message (not shown when `currentMathsSlot` finds a slot). */
 export function mathStatusForClass(w: World, classId: number | null): "not_school_day" | "no_class" | "upcoming" | "complete" | "no_maths" {
-  if (w.event.phase !== "school_day") return "not_school_day";
-  if (classId === null) return "no_class";
-  const rows = classTimetable(w, classId);
-  const mathsRow = rows.find((r) => r.subject?.isMathsChallenge);
-  if (!mathsRow) return "no_maths";
-  return mathsRow.status === "upcoming" ? "upcoming" : "complete"; // "now" can't reach here: currentMathsSlot would have matched
+  const status = subjectStatusForClass(w, classId, (s) => s.isMathsChallenge);
+  return status === "not_scheduled" ? "no_maths" : status;
 }
 
 type Op = "+" | "−" | "×" | "÷";

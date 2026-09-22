@@ -12,7 +12,7 @@ const boundaries: BoundaryRow[] = [
 
 const klass = (id: number, name: string): ClassRow => ({ id, name, color: "#000", sortOrder: id, teamPhotoUrl: null });
 const subject = (id: number, rooms: string[] = []): SubjectRow => ({
-  id, name: `S${id}`, tagline: "", description: "", activity: "", icon: "", color: "#000", maxScore: 20, rooms, sortOrder: id, active: true, isMathsChallenge: false,
+  id, name: `S${id}`, tagline: "", description: "", activity: "", icon: "", color: "#000", maxScore: 20, rooms, sortOrder: id, active: true, isMathsChallenge: false, isBuzzerChallenge: false,
 });
 
 describe("grade boundaries", () => {

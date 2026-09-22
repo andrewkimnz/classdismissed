@@ -245,6 +245,9 @@ describe("start the event fresh", () => {
     const [period] = await c.sql<{ id: number }>`select id from periods order by number limit 1`;
     await c.sql`insert into math_challenges (student_id, period_id, streak, question, answer, status)
       values (${stu.id}, ${period.id}, 2, '3 + 4', 7, 'playing')`;
+    await c.sql`insert into buzzer_rounds (question_number, student_id, class_id, buzzed_at, result, resolved_by)
+      values (1, ${stu.id}, ${stu.classId}, now(), 'correct', null)`;
+    await c.sql`update buzzer_state set question_number = 2 where id = 1`;
 
     const setup = async () => (await c.sql<Record<string, number>>`
       select (select count(*)::int from classes) as classes, (select count(*)::int from students) as students,
@@ -258,12 +261,14 @@ describe("start the event fresh", () => {
     const [stuNames0] = await c.sql<{ n: string }>`select string_agg(name || student_no || class_id, ',' order by id) as n from students`;
 
     const before = await countEventActivity(c.sql);
-    assert.ok(before.scores > 0 && before.notes > 0 && before.attempts > 0 && before.detentions > 0 && before.checkedIn > 0 && before.mathChallenges > 0, "there is something to clear");
+    assert.ok(before.scores > 0 && before.notes > 0 && before.attempts > 0 && before.detentions > 0 && before.checkedIn > 0 && before.mathChallenges > 0 && before.buzzerRounds > 0, "there is something to clear");
     const cleared = await c.tx((sql) => resetEventData(sql));
     assert.deepEqual(cleared, before, "reports exactly what it cleared");
 
     // everything that happened is gone…
-    assert.deepEqual(await countEventActivity(c.sql), { scores: 0, notes: 0, clubCompletions: 0, attempts: 0, gradeChanges: 0, detentions: 0, checkedIn: 0, mathChallenges: 0 });
+    assert.deepEqual(await countEventActivity(c.sql), { scores: 0, notes: 0, clubCompletions: 0, attempts: 0, gradeChanges: 0, detentions: 0, checkedIn: 0, mathChallenges: 0, buzzerRounds: 0 });
+    const [buzzer] = await c.sql<{ questionNumber: number; buzzedStudentId: number | null }>`select question_number, buzzed_student_id from buzzer_state where id = 1`;
+    assert.deepEqual([buzzer.questionNumber, buzzer.buzzedStudentId], [0, null], "the buzzer round is back to the start");
     const [ev] = await c.sql<{ phase: string; currentPeriod: number; scoringLocked: boolean }>`select phase, current_period, scoring_locked from events`;
     assert.deepEqual([ev.phase, ev.currentPeriod, ev.scoringLocked], ["school_day", 0, false]);
     const [award] = await c.sql<{ n: number }>`select count(*)::int as n from students where custom_award is not null`;
@@ -315,6 +320,50 @@ describe("migration 0005 repairs attempts that were recorded before notes were e
     assert.equal(spent[cc], 3, "made with 3 notes available → full price");
     const bal = noteBalance(await loadWorld(c.sql), k.id);
     assert.deepEqual([bal.earned, bal.spent, bal.available], [5, 5, 0]);
+    await c.end();
+  });
+});
+
+/**
+ * The whole point of a buzzer is that exactly one person wins a tie. `buzzIn` (src/actions/buzzer.ts)
+ * relies on a single UPDATE ... WHERE buzzed_student_id is null ... RETURNING to make that atomic:
+ * only whichever concurrent request's UPDATE finds the row still unclaimed gets to set it. This fires
+ * many of those at once, for real, against a real Postgres (skipped without TEST_DATABASE_URL — PGlite
+ * is one in-process connection, so it can't meaningfully race). Lives in this file, not its own, so it
+ * never runs concurrently with this file's other real-database tests against the same TEST_DATABASE_URL
+ * (node:test parallelises across files by default; two files each truncating and reseeding the same
+ * live database at once corrupts both).
+ */
+describe("Buzzer: first buzz wins, even under real concurrency", { skip: !process.env.TEST_DATABASE_URL }, () => {
+  it("30 students buzz at the exact same instant: exactly one claims it, the other 29 are told they're too late", async () => {
+    const c = await connect({ url: process.env.TEST_DATABASE_URL });
+    await migrate(c);
+    await seed(c, { profile: "fresh" });
+    const students = await c.sql<{ id: number }>`select id from students order by id limit 30`;
+    assert.equal(students.length, 30);
+    await c.sql`update buzzer_state set question_number = 1, buzzed_student_id = null, buzzed_at = null, result = null where id = 1`;
+
+    // Each "buzz" is its own connection, exactly like 30 different phones — not 30 queries serialized
+    // on one connection, which would prove nothing about the race.
+    const attempts = await Promise.all(
+      students.map(async (s) => {
+        const own = await connect({ url: process.env.TEST_DATABASE_URL });
+        try {
+          const claimed = await own.sql<{ id: number }>`
+            update buzzer_state set buzzed_student_id = ${s.id}, buzzed_at = now(), result = null
+            where id = 1 and question_number = 1 and buzzed_student_id is null
+            returning id`;
+          return { studentId: s.id, won: claimed.length === 1 };
+        } finally {
+          await own.end();
+        }
+      }),
+    );
+
+    const winners = attempts.filter((a) => a.won);
+    assert.equal(winners.length, 1, `expected exactly 1 winner, got ${winners.length}`);
+    const [row] = await c.sql<{ buzzedStudentId: number }>`select buzzed_student_id from buzzer_state where id = 1`;
+    assert.equal(row.buzzedStudentId, winners[0].studentId, "the row agrees with whichever request the database told it won");
     await c.end();
   });
 });

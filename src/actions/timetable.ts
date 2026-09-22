@@ -87,6 +87,7 @@ const subjectSchema = z.object({
   rooms: z.string().max(200), // comma separated
   active: z.boolean(),
   isMathsChallenge: z.boolean(),
+  isBuzzerChallenge: z.boolean(),
 });
 type SubjectInput = z.input<typeof subjectSchema>;
 
@@ -95,11 +96,12 @@ const roomsOf = (s: string) => s.split(",").map((r) => r.trim()).filter(Boolean)
 export async function createSubject(input: SubjectInput): Promise<ActionResult> {
   return run("manage", async (ctx) => {
     const v = parse(subjectSchema, input);
-    // Only one subject runs the Maths toss challenge at a time.
+    // Only one subject runs each mini-game at a time (independently of each other).
     if (v.isMathsChallenge) await ctx.sql`update subjects set is_maths_challenge = false`;
+    if (v.isBuzzerChallenge) await ctx.sql`update subjects set is_buzzer_challenge = false`;
     await ctx.sql`
-      insert into subjects (name, tagline, description, activity, icon, color, max_score, rooms, active, is_maths_challenge, sort_order)
-      values (${v.name}, ${v.tagline}, ${v.description}, ${v.activity}, ${v.icon}, ${v.color}, ${v.maxScore}, ${roomsOf(v.rooms)}::jsonb, ${v.active}, ${v.isMathsChallenge},
+      insert into subjects (name, tagline, description, activity, icon, color, max_score, rooms, active, is_maths_challenge, is_buzzer_challenge, sort_order)
+      values (${v.name}, ${v.tagline}, ${v.description}, ${v.activity}, ${v.icon}, ${v.color}, ${v.maxScore}, ${roomsOf(v.rooms)}::jsonb, ${v.active}, ${v.isMathsChallenge}, ${v.isBuzzerChallenge},
               (select coalesce(max(sort_order), 0) + 1 from subjects))`;
     await audit(ctx, "subject.create", `Created subject ${v.name}`);
     return { message: `${v.name} added.` };
@@ -110,9 +112,11 @@ export async function updateSubject(input: SubjectInput & { id: number }): Promi
   return run("manage", async (ctx) => {
     const v = parse(subjectSchema.extend({ id: z.number().int().positive() }), input);
     if (v.isMathsChallenge) await ctx.sql`update subjects set is_maths_challenge = false where id <> ${v.id}`;
+    if (v.isBuzzerChallenge) await ctx.sql`update subjects set is_buzzer_challenge = false where id <> ${v.id}`;
     const rows = await ctx.sql`
       update subjects set name = ${v.name}, tagline = ${v.tagline}, description = ${v.description}, activity = ${v.activity},
-        icon = ${v.icon}, color = ${v.color}, max_score = ${v.maxScore}, rooms = ${roomsOf(v.rooms)}::jsonb, active = ${v.active}, is_maths_challenge = ${v.isMathsChallenge}
+        icon = ${v.icon}, color = ${v.color}, max_score = ${v.maxScore}, rooms = ${roomsOf(v.rooms)}::jsonb, active = ${v.active},
+        is_maths_challenge = ${v.isMathsChallenge}, is_buzzer_challenge = ${v.isBuzzerChallenge}
       where id = ${v.id} returning id`;
     if (!rows.length) throw new UserError("That subject no longer exists.");
     await audit(ctx, "subject.update", `Updated subject ${v.name}`, { entity: "subject", entityId: v.id, data: v });

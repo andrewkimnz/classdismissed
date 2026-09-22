@@ -39,6 +39,37 @@ export function currentAndNext(rows: TimetableRow[]) {
   return { current, next, allDone };
 }
 
+export interface SubjectSlot {
+  periodId: number;
+  subject: SubjectRow;
+}
+
+/**
+ * Is this class, right now, in whichever subject `flag` picks out? Only during School Day (After
+ * School and Event Complete have no periods running). A student with no class yet (checked in
+ * without one assigned) is never eligible. Shared by every "mini-game tied to one subject" feature
+ * (the Maths toss challenge, the Buzzer round, and whatever comes after those) — the game-specific
+ * code just supplies which boolean column on `subjects` marks its subject.
+ */
+export function currentSubjectSlot(w: World, classId: number | null, flag: (s: SubjectRow) => boolean): SubjectSlot | null {
+  if (w.event.phase !== "school_day" || classId === null) return null;
+  const { current } = currentAndNext(classTimetable(w, classId));
+  if (!current?.subject || !flag(current.subject)) return null;
+  return { periodId: current.period.id, subject: current.subject };
+}
+
+export type SubjectSlotStatus = "not_school_day" | "no_class" | "upcoming" | "complete" | "not_scheduled";
+
+/** Why a class can't play right now, for a friendly message (not shown when `currentSubjectSlot` finds a slot). */
+export function subjectStatusForClass(w: World, classId: number | null, flag: (s: SubjectRow) => boolean): SubjectSlotStatus {
+  if (w.event.phase !== "school_day") return "not_school_day";
+  if (classId === null) return "no_class";
+  const rows = classTimetable(w, classId);
+  const row = rows.find((r) => r.subject && flag(r.subject));
+  if (!row) return "not_scheduled";
+  return row.status === "upcoming" ? "upcoming" : "complete"; // "now" can't reach here: currentSubjectSlot would have matched
+}
+
 /** Next instant a clock-mode timetable changes status (so phones can refresh on the dot). */
 export function nextClockBoundary(w: World, now: number): number | null {
   if (w.event.timetableMode !== "clock") return null;
