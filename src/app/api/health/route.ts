@@ -37,8 +37,10 @@ export async function GET() {
     await sql`select 1`;
   });
   await run("tables up to date", async () => {
-    // The newest migration this build needs. (Migration files aren't bundled with the site, so name it here.)
-    const rows = await sql<{ n: number }>`select count(*)::int as n from _kac_migrations where name = '0005_note_spend_snapshot.sql'`;
+    // The newest migration this BUILD needs. Bump this whenever a new file lands in supabase/migrations —
+    // it was last forgotten going from 0005 to 0006, which let this check report "ok" on a database that
+    // wasn't. Migration files aren't bundled with the deployed site, so it can't just list the folder.
+    const rows = await sql<{ n: number }>`select count(*)::int as n from _kac_migrations where name = '0006_math_challenge.sql'`;
     if (!rows[0]?.n) throw new Error("behind");
   });
   await run("an admin account exists", async () => {
