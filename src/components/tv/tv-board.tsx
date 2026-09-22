@@ -84,7 +84,7 @@ export function TvBoard({ rev, waiting, history, nowClasses }: Props) {
         {waiting.length === 0 ? (
           <div className="card bg-white p-10 text-center">
             <div className="text-6xl">🧮</div>
-            <div className="display mt-2 text-4xl">Watching for the next winner…</div>
+            <div className="display mt-2 text-4xl">Watching for the next tosser…</div>
           </div>
         ) : (
           <div className="grid gap-5" style={{ gridTemplateColumns: waiting.length === 1 ? "1fr" : "repeat(auto-fit, minmax(360px, 1fr))" }}>

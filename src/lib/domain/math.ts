@@ -62,7 +62,7 @@ export interface MathQuestion {
 }
 
 /** How long a "go toss it" window stays open once a student wins, before it hands them a new question. */
-export const TOSS_WINDOW_MS = 5000;
+export const TOSS_WINDOW_MS = 10000;
 
 /** Pure so it's the same check on the server (enforcing the minimum) and the client (the countdown). */
 export function tossWindowExpired(wonAt: Date | string, now: number = Date.now()): boolean {
