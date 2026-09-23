@@ -1,7 +1,7 @@
 "use client";
 
-import { clearMathToss } from "@/actions/math";
-import { Panel, useAct } from "@/components/admin/ui";
+import { clearMathToss, resetMathSession } from "@/actions/math";
+import { ConfirmButton, Panel, useAct } from "@/components/admin/ui";
 import { ClassBadge } from "@/components/ui/kit";
 import { timeAgo } from "@/lib/domain/time";
 
@@ -41,7 +41,17 @@ export function MathDesk({ items }: { items: MathDeskItem[] }) {
           </ul>
         )}
       </Panel>
-      <Panel title={`Tossed at least once (${tossed.length})`}>
+      <Panel
+        title={`Tossed at least once (${tossed.length})`}
+        right={
+          <ConfirmButton
+            size="sm" variant="ghost" confirmLabel="Clear everyone's progress & restart?" disabled={pending}
+            onConfirm={() => act(() => resetMathSession())}
+          >
+            Reset session
+          </ConfirmButton>
+        }
+      >
         {tossed.length === 0 ? <p className="text-sm text-ink-soft">Nobody yet.</p> : (
           <ul className="divide-y divide-line">
             {tossed.map((i) => (

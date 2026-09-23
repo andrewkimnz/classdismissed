@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { audit, parse, run, UserError, type ActionResult } from "@/lib/actions";
 import { phaseLabel } from "@/lib/domain/phases";
-import { resetEventData } from "@/lib/reset";
+import { resetBuzzerSession, resetEventData, resetMathChallenges } from "@/lib/reset";
 
 const phaseSchema = z.enum(["school_day", "after_school", "event_complete"]);
 
@@ -52,11 +52,20 @@ export async function setTimetableMode(input: { mode: string }): Promise<ActionR
 export async function setCurrentPeriod(input: { period: number }): Promise<ActionResult> {
   return run("manage", async (ctx) => {
     const { period } = parse(z.object({ period: z.number().int().min(0).max(99) }), input);
+    const [before] = await ctx.sql<{ currentPeriod: number }>`select current_period from events where id = 1`;
     await ctx.sql`update events set current_period = ${period} where id = 1`;
     const count = (await ctx.sql<{ n: number }>`select count(*)::int as n from periods`)[0].n;
     const label = period === 0 ? "Before first bell" : period > count ? "School day finished" : `Rotation ${period} started`;
-    await audit(ctx, "event.period", `🔔 ${label}`, { entity: "event", entityId: 1, data: { period } });
-    return { message: `🔔 ${label}.` };
+    // A new rotation puts different classes in Maths/Social Studies, so whatever the last group was
+    // doing there stops being relevant — same reset as the manual buttons on each of those pages.
+    let extra = "";
+    if (period !== before.currentPeriod) {
+      await resetMathChallenges(ctx.sql);
+      await resetBuzzerSession(ctx.sql);
+      extra = " Maths and Buzzer reset for the new rotation.";
+    }
+    await audit(ctx, "event.period", `🔔 ${label}.${extra}`, { entity: "event", entityId: 1, data: { period } });
+    return { message: `🔔 ${label}.${extra}` };
   });
 }
 

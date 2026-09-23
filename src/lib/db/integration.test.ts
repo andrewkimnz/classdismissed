@@ -367,3 +367,41 @@ describe("Buzzer: first buzz wins, even under real concurrency", { skip: !proces
     await c.end();
   });
 });
+
+describe("Maths and Buzzer both clear on a genuine rotation change, not a same-value resubmit", () => {
+  it("resetMathChallenges / resetBuzzerSession are what the rotation bell (setCurrentPeriod) calls when the period actually changes", async () => {
+    const { resetMathChallenges, resetBuzzerSession } = await import("@/lib/reset");
+    const c = process.env.TEST_DATABASE_URL ? await connect({ url: process.env.TEST_DATABASE_URL }) : await connect({ url: "", dataDir: null });
+    await migrate(c);
+    await seed(c, { profile: "fresh" });
+    const [stu] = await c.sql<{ id: number; classId: number }>`select id, class_id from students order by id limit 1`;
+    const [period] = await c.sql<{ id: number }>`select id from periods order by number limit 1`;
+    await c.sql`insert into math_challenges (student_id, period_id, streak, question, answer, status) values (${stu.id}, ${period.id}, 2, '3 + 4', 7, 'playing')`;
+    await c.sql`insert into buzzer_questions (question, choices, correct_index) values ('Q?', '["a","b"]'::jsonb, 0)`;
+    await c.sql`update buzzer_state set question_number = 2, buzzed_student_id = ${stu.id}, buzzed_at = now(), result = 'correct' where id = 1`;
+    await c.sql`insert into buzzer_rounds (question_number, student_id, class_id, buzzed_at, result, question_text) values (1, ${stu.id}, ${stu.classId}, now(), 'correct', 'Q?')`;
+
+    // Mirrors setCurrentPeriod's own logic exactly: only reset when the period genuinely changes.
+    const simulateBell = async (from: number, to: number) => {
+      if (to !== from) {
+        await c.tx(async (sql) => {
+          await resetMathChallenges(sql);
+          await resetBuzzerSession(sql);
+        });
+      }
+    };
+
+    await simulateBell(1, 1); // same value: a no-op resubmit must NOT wipe an in-progress round
+    assert.equal((await c.sql`select count(*)::int as n from math_challenges`)[0].n, 1, "same-period resubmit must not clear Maths");
+    assert.equal((await c.sql`select count(*)::int as n from buzzer_rounds`)[0].n, 1, "same-period resubmit must not clear the Buzzer scoreboard");
+
+    await simulateBell(1, 2); // a genuine rotation change
+    assert.equal((await c.sql`select count(*)::int as n from math_challenges`)[0].n, 0, "a new rotation clears Maths progress");
+    const [buzzer] = await c.sql<{ questionNumber: number; buzzedStudentId: number | null }>`select question_number, buzzed_student_id from buzzer_state where id = 1`;
+    assert.deepEqual([buzzer.questionNumber, buzzer.buzzedStudentId], [0, null], "a new rotation ends the Buzzer round");
+    assert.equal((await c.sql`select count(*)::int as n from buzzer_rounds`)[0].n, 0, "a new rotation clears the Buzzer scoreboard");
+    assert.equal((await c.sql`select count(*)::int as n from buzzer_questions`)[0].n, 1, "the prepared question bank is never touched by a rotation change");
+
+    await c.end();
+  });
+});

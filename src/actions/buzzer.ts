@@ -6,6 +6,7 @@ import { rateLimited } from "@/lib/auth/rate-limit";
 import type { Sql } from "@/lib/db/sql";
 import { getWorld } from "@/lib/data/world";
 import { currentBuzzerSlot } from "@/lib/domain/buzzer";
+import { resetBuzzerSession } from "@/lib/reset";
 
 const id = z.number().int().positive();
 
@@ -96,8 +97,7 @@ export async function clearBuzz(): Promise<ActionResult> {
 export async function resetBuzzerRound(): Promise<ActionResult> {
   return run("manage", async (ctx) => {
     const [{ n }] = await ctx.sql<{ n: number }>`select count(*)::int as n from buzzer_rounds`;
-    await ctx.sql`delete from buzzer_rounds`;
-    await ctx.sql`update buzzer_state set question_number = 0, buzzed_student_id = null, buzzed_at = null, result = null where id = 1`;
+    await resetBuzzerSession(ctx.sql);
     await audit(ctx, "buzzer.reset", `Buzzer: started a new session (cleared ${n} scoreboard ${n === 1 ? "entry" : "entries"})`, { entity: "buzzer_state" });
     return { message: "New session started. Questions are untouched." };
   });

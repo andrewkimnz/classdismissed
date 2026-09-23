@@ -40,12 +40,25 @@ export async function countEventActivity(sql: Sql): Promise<ResetCounts> {
   return r;
 }
 
+/** Clears everyone's Maths-toss progress (streaks, tosses, current question). Shared by the manual
+ * "Reset session" button on the Maths tosses page, the rotation bell (a new rotation means different
+ * classes are in Maths now), and "Start the event fresh". */
+export async function resetMathChallenges(sql: Sql): Promise<void> {
+  await sql`delete from math_challenges`;
+}
+
+/** Ends the current Buzzer session: the scoreboard and the live round both clear, back to "start of
+ * round". Shared by the manual "Reset session" button, the rotation bell, and "Start the event fresh". */
+export async function resetBuzzerSession(sql: Sql): Promise<void> {
+  await sql`delete from buzzer_rounds`;
+  await sql`update buzzer_state set question_number = 0, buzzed_student_id = null, buzzed_at = null, result = null where id = 1`;
+}
+
 /** Run inside a transaction. Returns what was cleared. */
 export async function resetEventData(sql: Sql): Promise<ResetCounts> {
   const counts = await countEventActivity(sql);
-  await sql`delete from math_challenges`;
-  await sql`delete from buzzer_rounds`;
-  await sql`update buzzer_state set question_number = 0, buzzed_student_id = null, buzzed_at = null, result = null where id = 1`;
+  await resetMathChallenges(sql);
+  await resetBuzzerSession(sql);
   await sql`delete from detentions`;
   await sql`delete from grade_modifications`;
   await sql`delete from principal_attempts`;

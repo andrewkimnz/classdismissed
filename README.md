@@ -105,8 +105,11 @@ Design decisions worth knowing:
   physical toss, shown live on the `/math` leaderboard so the exec running the table knows who's up. The
   window closes itself (no exec action needed) and hands the student a fresh question, so they can win
   another; *Maths tosses* in the staff room (admin-only; a game-master tool would be reasonable too, ask if
-  you want it added) just shows the queue and can end a window early. Answers are generated and checked
-  server-side and never sent to the browser.
+  you want it added) just shows the queue, can end a window early, and has a **Reset session** button for
+  starting a new one without touching setup. The same reset also runs automatically whenever the rotation
+  bell rings and the period actually changes — a new rotation puts different classes in Maths, so whatever
+  the last group was doing there stops being relevant. Answers are generated and checked server-side and
+  never sent to the browser.
 * **Buzzer round.** Whichever subject is flagged `is_buzzer_challenge` (SOCIAL STUDIES by default, same
   one-at-a-time toggle as Maths) gets live trivia: while a class is in that subject, students see a
   **Buzzer** tab with one big button. An exec on *Buzzer* in the staff room (admin-only; same note as
@@ -123,7 +126,9 @@ Design decisions worth knowing:
   correct answer only ever reaches an admin's screen (or a public one *after* a buzz is resolved,
   matching how the room finds out for real) — never the student app or the TV beforehand. Editing or
   deleting a question never rewrites the scoreboard: each resolved round snapshots the question text it
-  was actually asked with, in `buzzer_rounds.question_text`.
+  was actually asked with, in `buzzer_rounds.question_text`. **Reset session** on the same page clears the
+  scoreboard and live round back to "start of round" — the question bank is untouched — and, like Maths,
+  this also runs automatically whenever the rotation bell rings and the period actually changes.
 * **`/tv/math` and `/tv/buzzer`: big screens for the venue.** No student or admin sign-in — open one
   straight from a TV/Chromecast browser and leave it running. `/tv` is deliberately a folder, not a
   single page: the same pattern (a subject flag, a student mini-game, a `/tv/<subject>` display) can be
@@ -289,6 +294,7 @@ Staff sign in with a **username** (1–40 characters, no spaces; not case-sensit
 | Goal | How |
 |---|---|
 | Start the event fresh (after a rehearsal, or to redo the night) | *Event control → Start the event fresh* (admins only; type `RESET`). Clears scores, notes, club completions, attempts, grade changes, detentions and check-ins, and returns to School Day before the first bell. **Keeps** classes and names, students and login cards, ID/team photos, clubs, subjects, timetable, rules, grade boundaries, risk tiers, staff accounts and the activity log |
+| New Maths/Buzzer session mid-event (without a full reset) | **Reset session** on *Maths tosses* or *Buzzer* in the staff room. Also happens automatically whenever the rotation bell rings and the period changes — questions and the prepared bank are never touched |
 | Fresh demo data (local) | `npm run db:reset` (or delete `.data/` and restart `npm run dev`) |
 | Clean roster for real, no students | `DATABASE_URL=… npm run db:seed -- --profile=blank --yes` |
 

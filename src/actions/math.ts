@@ -6,6 +6,7 @@ import { rateLimited } from "@/lib/auth/rate-limit";
 import { clearTossWindow, getActiveChallenge } from "@/lib/data/math";
 import { getWorld } from "@/lib/data/world";
 import { currentMathsSlot, generateMathQuestion } from "@/lib/domain/math";
+import { resetMathChallenges } from "@/lib/reset";
 
 const id = z.number().int().positive();
 const WIN_STREAK = 3;
@@ -59,5 +60,20 @@ export async function clearMathToss(input: { id: number }): Promise<ActionResult
     if (!row) throw new UserError("That entry isn't waiting to toss any more.");
     await audit(ctx, "math.toss", `${row.name}'s toss window cleared`, { entity: "math_challenge", entityId: v.id });
     return { message: `${row.name} can play for another toss.` };
+  });
+}
+
+/**
+ * Ends the current Maths-toss session and starts a new one: every student's streak/tosses clear, back
+ * to their first question next time they open the tab. Doesn't touch anything else — a new rotation
+ * already puts different classes in Maths, so this is also run automatically when the bell rings
+ * (see setCurrentPeriod in src/actions/event.ts).
+ */
+export async function resetMathSession(): Promise<ActionResult> {
+  return run("manage", async (ctx) => {
+    const [{ n }] = await ctx.sql<{ n: number }>`select count(*)::int as n from math_challenges`;
+    await resetMathChallenges(ctx.sql);
+    await audit(ctx, "math.reset", `Maths: started a new session (cleared ${n} ${n === 1 ? "student's" : "students'"} progress)`, { entity: "math_challenges" });
+    return { message: "New session started." };
   });
 }
