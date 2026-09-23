@@ -118,7 +118,10 @@ Design decisions worth knowing:
   `UPDATE … WHERE buzzed_student_id IS NULL`, so two buzzes at the exact same instant can never both
   win (a dedicated test hammers this with real concurrent connections). The exec marks them correct or
   wrong, which logs to a running per-class scoreboard, then moves on; **Clear** undoes a mis-tap without
-  touching the scoreboard or the question number.
+  touching the scoreboard or the question number. A correct answer also adds 1 point to that student's
+  class's mark in whichever subject Buzzer is tied to, capped at that subject's max and skipped while
+  scoring is locked — the same `class_subject_scores` table Score entry writes to, so it's live on the
+  leaderboard immediately.
   *Questions* under Set up is a multiple-choice question bank (2–6 choices, one marked correct, reorder
   with ▲▼): "question N" in the round is simply the Nth one there, in play order. It's entirely
   optional — advancing past the end of the bank, or never adding any questions, just falls back to a

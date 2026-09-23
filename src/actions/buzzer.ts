@@ -7,6 +7,7 @@ import type { Sql } from "@/lib/db/sql";
 import { getWorld } from "@/lib/data/world";
 import { currentBuzzerSlot } from "@/lib/domain/buzzer";
 import { resetBuzzerSession } from "@/lib/reset";
+import { addSubjectPoints } from "@/lib/scoring";
 
 const id = z.number().int().positive();
 
@@ -20,10 +21,13 @@ async function questionTextAt(sql: Sql, n: number): Promise<string | null> {
 /** A student buzzes in. The first one to reach the database wins — the UPDATE's WHERE clause is what
  * makes that atomic: only a request that finds the round still unclaimed can claim it. */
 export async function buzzIn(): Promise<ActionResult<{ won: boolean }>> {
+  // Loaded before the transaction, not inside it: getWorld() runs on the app's shared connection, not
+  // ctx.sql, so calling it once the transaction below is open would have it wait on a connection the
+  // transaction itself is holding — a real deadlock against the single-connection embedded dev database.
+  const world = await getWorld();
   return runAsStudent<{ won: boolean }>(async (ctx) => {
     if (rateLimited(`buzz:${ctx.studentId}`, 20, 60_000)) throw new UserError("Slow down a little, then try again.");
 
-    const world = await getWorld();
     const student = world.students.find((s) => s.id === ctx.studentId);
     if (!student) throw new UserError("Couldn't find your account. Reload and sign in again.");
     if (!currentBuzzerSlot(world, student.classId)) throw new UserError("Buzzer isn't your class's current class right now.");
@@ -59,7 +63,13 @@ export async function nextBuzzerQuestion(): Promise<ActionResult> {
   });
 }
 
-/** Marks the current buzz correct or wrong, and logs it to the scoreboard. */
+/**
+ * Marks the current buzz correct or wrong, and logs it to the scoreboard. A correct answer also adds
+ * 1 point to the buzzing student's class's mark in whichever subject Buzzer is tied to (the one flagged
+ * `is_buzzer_challenge`), capped at that subject's max — the same table Score entry writes to, so it
+ * shows up on the leaderboard immediately. Skipped if scoring is locked, or if no subject is tied to
+ * Buzzer right now; either way the buzz still gets marked.
+ */
 export async function resolveBuzz(input: { result: "correct" | "wrong" }): Promise<ActionResult> {
   return run("manage", async (ctx) => {
     const v = parse(z.object({ result: z.enum(["correct", "wrong"]) }), input);
@@ -67,14 +77,28 @@ export async function resolveBuzz(input: { result: "correct" | "wrong" }): Promi
       select question_number, buzzed_student_id, result from buzzer_state where id = 1`;
     if (state.buzzedStudentId === null) throw new UserError("Nobody's buzzed in yet.");
     if (state.result !== null) throw new UserError("Already marked.");
-    const [student] = await ctx.sql<{ name: string; classId: number | null }>`select name, class_id from students where id = ${state.buzzedStudentId}`;
+    const [student] = await ctx.sql<{ name: string; classId: number | null; className: string | null }>`
+      select st.name, st.class_id, c.name as class_name from students st left join classes c on c.id = st.class_id where st.id = ${state.buzzedStudentId}`;
     const text = await questionTextAt(ctx.sql, state.questionNumber);
     await ctx.sql`update buzzer_state set result = ${v.result} where id = 1`;
     await ctx.sql`
       insert into buzzer_rounds (question_number, student_id, class_id, buzzed_at, result, resolved_by, question_text)
       values (${state.questionNumber}, ${state.buzzedStudentId}, ${student?.classId ?? null}, now(), ${v.result}, ${ctx.actor.id}, ${text})`;
-    await audit(ctx, "buzzer.resolve", `Buzzer Q${state.questionNumber}: ${student?.name ?? "a student"} marked ${v.result}`, { entity: "buzzer_state" });
-    return { message: `Marked ${v.result}.` };
+
+    let scoreNote = "";
+    if (v.result === "correct" && student?.classId) {
+      const [ev] = await ctx.sql<{ scoringLocked: boolean }>`select scoring_locked from events where id = 1`;
+      const [subject] = await ctx.sql<{ id: number; name: string; maxScore: number }>`select id, name, max_score from subjects where is_buzzer_challenge limit 1`;
+      if (ev.scoringLocked) {
+        scoreNote = " Scoring is locked, so no point was added.";
+      } else if (subject) {
+        const score = await addSubjectPoints(ctx.sql, { classId: student.classId, subjectId: subject.id, points: 1, maxScore: subject.maxScore, enteredBy: ctx.actor.id });
+        scoreNote = ` +1 to ${student.className ?? "their class"}'s ${subject.name} (now ${score}/${subject.maxScore}).`;
+      }
+    }
+
+    await audit(ctx, "buzzer.resolve", `Buzzer Q${state.questionNumber}: ${student?.name ?? "a student"} marked ${v.result}.${scoreNote}`, { entity: "buzzer_state" });
+    return { message: `Marked ${v.result}.${scoreNote}` };
   });
 }
 

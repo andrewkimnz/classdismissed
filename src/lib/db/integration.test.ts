@@ -405,3 +405,35 @@ describe("Maths and Buzzer both clear on a genuine rotation change, not a same-v
     await c.end();
   });
 });
+
+describe("addSubjectPoints: a correct Buzzer answer's +1, exactly as resolveBuzz uses it", () => {
+  it("creates the class's score if it has none, adds on top of an existing one, and never exceeds the subject's max", async () => {
+    const { addSubjectPoints } = await import("@/lib/scoring");
+    const c = process.env.TEST_DATABASE_URL ? await connect({ url: process.env.TEST_DATABASE_URL }) : await connect({ url: "", dataDir: null });
+    await migrate(c);
+    await seed(c, { profile: "fresh" });
+    const [klass] = await c.sql<{ id: number }>`select id from classes order by id limit 1`;
+    const [subject] = await c.sql<{ id: number; maxScore: number }>`select id, max_score from subjects where is_buzzer_challenge limit 1`;
+    assert.ok(subject, "the demo seed ties Buzzer to a subject by default (Social Studies)");
+    // Staff accounts survive a "fresh" reseed (same as a real event's roster), so this needs to be
+    // idempotent to be re-run against a database that already has this test's admin in it.
+    const [admin] = await c.sql<{ id: number }>`
+      insert into admins (email, name, role, password_hash) values ('test-admin', 'Test Admin', 'admin', 'x')
+      on conflict (lower(email)) do update set name = excluded.name returning id`;
+
+    const first = await addSubjectPoints(c.sql, { classId: klass.id, subjectId: subject.id, points: 1, maxScore: subject.maxScore, enteredBy: admin.id });
+    assert.equal(first, 1, "no prior score: starts at 1");
+
+    const second = await addSubjectPoints(c.sql, { classId: klass.id, subjectId: subject.id, points: 1, maxScore: subject.maxScore, enteredBy: admin.id });
+    assert.equal(second, 2, "adds on top of the existing score, doesn't overwrite it");
+
+    // Push it right up to (and past) the cap.
+    for (let i = 0; i < subject.maxScore; i++) {
+      await addSubjectPoints(c.sql, { classId: klass.id, subjectId: subject.id, points: 1, maxScore: subject.maxScore, enteredBy: admin.id });
+    }
+    const [row] = await c.sql<{ score: number }>`select score from class_subject_scores where class_id = ${klass.id} and subject_id = ${subject.id}`;
+    assert.equal(row.score, subject.maxScore, "clamped at the subject's max, never goes over");
+
+    await c.end();
+  });
+});

@@ -13,11 +13,14 @@ const WIN_STREAK = 3;
 
 /** A student answers their current question. Wrong just resets the streak and hands them a new one. */
 export async function submitMathAnswer(input: { answer: number }): Promise<ActionResult<{ correct: boolean; won: boolean }>> {
+  // Loaded before the transaction, not inside it: getWorld() runs on the app's shared connection, not
+  // ctx.sql, so calling it once the transaction below is open would have it wait on a connection the
+  // transaction itself is holding — a real deadlock against the single-connection embedded dev database.
+  const world = await getWorld();
   return runAsStudent<{ correct: boolean; won: boolean }>(async (ctx) => {
     if (rateLimited(`math:${ctx.studentId}`, 30, 60_000)) throw new UserError("Slow down a little, then try again.");
     const v = parse(z.object({ answer: z.coerce.number() }), input);
 
-    const world = await getWorld();
     const student = world.students.find((s) => s.id === ctx.studentId);
     if (!student) throw new UserError("Couldn't find your account. Reload and sign in again.");
     const slot = currentMathsSlot(world, student.classId);
