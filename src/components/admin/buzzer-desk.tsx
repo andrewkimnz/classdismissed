@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { clearBuzz, nextBuzzerQuestion, resetBuzzerRound, resolveBuzz } from "@/actions/buzzer";
 import { ConfirmButton, Panel, useAct } from "@/components/admin/ui";
+import { useLiveReload } from "@/components/use-live-reload";
 import { Avatar } from "@/components/ui/avatar";
 import { ClassBadge } from "@/components/ui/kit";
 import { cn } from "@/lib/cn";
@@ -35,7 +36,8 @@ export interface BuzzerDeskRound {
   resolvedAt: string;
 }
 
-export function BuzzerDesk({ state, history, questionCount }: { state: BuzzerDeskState; history: BuzzerDeskRound[]; questionCount: number }) {
+export function BuzzerDesk({ rev, state, history, questionCount }: { rev: number; state: BuzzerDeskState; history: BuzzerDeskRound[]; questionCount: number }) {
+  useLiveReload(rev, 1500);
   const { act, pending } = useAct();
   const started = state.questionNumber > 0;
 

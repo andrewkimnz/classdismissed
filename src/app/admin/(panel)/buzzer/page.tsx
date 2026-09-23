@@ -1,17 +1,19 @@
 import { BuzzerDesk } from "@/components/admin/buzzer-desk";
 import { PageHeader } from "@/components/admin/ui";
 import { getBuzzerAdminLive, getBuzzerHistory, getBuzzerQuestions } from "@/lib/data/buzzer";
+import { getLiveState } from "@/lib/data/live";
 import { requireAdminPage } from "@/lib/auth/admin";
 
 export const metadata = { title: "Buzzer" };
 
 export default async function BuzzerAdminPage() {
   await requireAdminPage("manage");
-  const [state, history, questions] = await Promise.all([getBuzzerAdminLive(), getBuzzerHistory(50), getBuzzerQuestions()]);
+  const [state, history, questions, live] = await Promise.all([getBuzzerAdminLive(), getBuzzerHistory(50), getBuzzerQuestions(), getLiveState()]);
   return (
     <>
       <PageHeader title="Buzzer" hint="run the trivia round" />
       <BuzzerDesk
+        rev={live.rev}
         state={{
           questionNumber: state.questionNumber,
           questionText: state.questionText,
