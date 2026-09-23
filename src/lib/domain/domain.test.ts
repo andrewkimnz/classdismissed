@@ -110,6 +110,42 @@ describe("timetable generator", () => {
   });
 });
 
+describe("timetable generator: minimises repeated room-mates when a subject's room pool is scarce", () => {
+  // 8 classes, only 2 subjects (so 4 classes share each subject each period) but each subject has just
+  // 2 rooms — someone has to double up. A naive per-class room formula (station = floor(classIndex /
+  // subjectCount), fixed all day) would pair the exact same two classes together in every period they
+  // share a room; the generator instead tracks who's already shared a room and steers around repeats.
+  const classes = Array.from({ length: 8 }, (_, i) => klass(i + 1, `C${i + 1}`));
+  const periods = [1, 2].map((n) => ({ id: n, number: n, startsAt: new Date(), endsAt: new Date() }));
+  const subjects = [1, 2].map((i) => subject(i, [`R${i}a`, `R${i}b`]));
+  const cells = generateTimetable(classes, periods, subjects);
+
+  it("still gives every class each subject exactly once", () => {
+    for (const c of classes) {
+      const ids = cells.filter((x) => x.classId === c.id).map((x) => x.subjectId).sort();
+      assert.deepEqual(ids, [1, 2]);
+    }
+  });
+
+  it("no two classes share a room more than once across the day", () => {
+    const counts = new Map<string, number>();
+    for (const p of periods) {
+      const byRoom = new Map<string, number[]>();
+      for (const cell of cells.filter((x) => x.periodId === p.id)) byRoom.set(cell.room, [...(byRoom.get(cell.room) ?? []), cell.classId]);
+      for (const ids of byRoom.values()) {
+        for (let i = 0; i < ids.length; i++) {
+          for (let j = i + 1; j < ids.length; j++) {
+            const key = [ids[i], ids[j]].sort((a, b) => a - b).join(":");
+            counts.set(key, (counts.get(key) ?? 0) + 1);
+          }
+        }
+      }
+    }
+    const repeated = [...counts.entries()].filter(([, n]) => n > 1);
+    assert.deepEqual(repeated, [], "every pair that shares a room does so at most once");
+  });
+});
+
 describe("event timezone", () => {
   it("6:30 PM on 2 Oct 2026 in Auckland (NZDT, UTC+13) is 05:30Z", () => {
     assert.equal(zonedToUtc("2026-10-02", "18:30", "Pacific/Auckland").toISOString(), "2026-10-02T05:30:00.000Z");

@@ -125,11 +125,50 @@ export interface GeneratedCell {
   room: string;
 }
 
+const pairKey = (a: number, b: number) => (a < b ? `${a}:${b}` : `${b}:${a}`);
+
 /**
- * Latin-square timetable: class c in period p does subject (c + p) mod S.
- * Every class meets every subject once (while periods ≤ subjects) and no
- * subject is double-booked beyond ceil(classes / subjects) classes per period,
- * each given its own room from the subject's room pool.
+ * Splits a group of classes sharing one subject-period into that subject's rooms, one class per room
+ * when there are enough rooms to go round. When there aren't, `seenPairs` — every pair of classes
+ * already put in a room together earlier in this same generation run — steers each class into whichever
+ * room currently has the fewest classmates it's already shared a room with, so a room shortage spreads
+ * across different classes instead of repeatedly pairing up the same two. Updates `seenPairs` in place
+ * with whatever pairings this period's assignment creates.
+ */
+function assignRooms(group: ClassRow[], rooms: string[], seenPairs: Set<string>): Map<number, string> {
+  const assignment = new Map<number, string>();
+  if (!rooms.length) {
+    for (const c of group) assignment.set(c.id, "");
+    return assignment;
+  }
+  const buckets: ClassRow[][] = rooms.map(() => []);
+  for (const c of group) {
+    let best = 0;
+    let bestScore = Infinity;
+    buckets.forEach((bucket, i) => {
+      const conflicts = bucket.filter((other) => seenPairs.has(pairKey(c.id, other.id))).length;
+      const score = conflicts * 1000 + bucket.length; // avoiding a repeat pairing matters far more than balancing bucket sizes
+      if (score < bestScore) {
+        bestScore = score;
+        best = i;
+      }
+    });
+    buckets[best].push(c);
+    assignment.set(c.id, rooms[best]);
+  }
+  for (const bucket of buckets) {
+    for (let i = 0; i < bucket.length; i++) {
+      for (let j = i + 1; j < bucket.length; j++) seenPairs.add(pairKey(bucket[i].id, bucket[j].id));
+    }
+  }
+  return assignment;
+}
+
+/**
+ * Latin-square timetable: class c in period p does subject (c + p) mod S. Every class meets every
+ * subject once (while periods ≤ subjects), and each period's room assignment is chosen to minimise how
+ * often the same two classes end up sharing a room together more than once across the day — unavoidable
+ * only when a subject's own room pool is too small to seat its whole group at once.
  */
 export function generateTimetable(classes: ClassRow[], periods: PeriodRow[], subjects: SubjectRow[]): GeneratedCell[] {
   const cs = [...classes].sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
@@ -137,13 +176,18 @@ export function generateTimetable(classes: ClassRow[], periods: PeriodRow[], sub
   const ss = subjects.filter((s) => s.active).sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
   if (!ss.length) return [];
   const cells: GeneratedCell[] = [];
-  cs.forEach((c, ci) => {
-    ps.forEach((p, pi) => {
-      const s = ss[(ci + pi) % ss.length];
-      const station = Math.floor(ci / ss.length);
-      const room = s.rooms.length ? s.rooms[station % s.rooms.length] : "";
-      cells.push({ classId: c.id, periodId: p.id, subjectId: s.id, room });
+  const seenPairs = new Set<string>();
+  ps.forEach((p, pi) => {
+    const groups = new Map<number, ClassRow[]>(); // subject index -> classes doing it this period
+    cs.forEach((c, ci) => {
+      const si = (ci + pi) % ss.length;
+      groups.set(si, [...(groups.get(si) ?? []), c]);
     });
+    for (const [si, group] of groups) {
+      const s = ss[si];
+      const assignment = assignRooms(group, s.rooms, seenPairs);
+      for (const c of group) cells.push({ classId: c.id, periodId: p.id, subjectId: s.id, room: assignment.get(c.id) ?? "" });
+    }
   });
   return cells;
 }
