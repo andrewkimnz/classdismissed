@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { createSubject, generateRotations, savePeriods, setRotation, setRotationRoom, updateSubject } from "@/actions/timetable";
-import { ConfirmButton, Field, Modal, Panel, Switch, useAct } from "@/components/admin/ui";
+import { createSubject, savePeriods, setRotation, setRotationRoom, updateSubject } from "@/actions/timetable";
+import { Field, Modal, Panel, Switch, useAct } from "@/components/admin/ui";
 import { cn, readableOn } from "@/lib/cn";
 
 interface Subject { id: number; name: string; tagline: string; description: string; activity: string; icon: string; color: string; maxScore: number; rooms: string[]; active: boolean; isMathsChallenge: boolean; isBuzzerChallenge: boolean }
@@ -45,7 +45,7 @@ export function TimetableAdmin({ classes, subjects, periods, rotations, issues, 
         )}
       </Panel>
 
-      <Panel title="Timetable matrix" right={canManage && <ConfirmButton size="sm" variant="plain" confirmLabel="Replace everything?" disabled={pending} onConfirm={() => act(() => generateRotations())}>✨ Auto-generate</ConfirmButton>}>
+      <Panel title="Timetable matrix">
         <p className="mb-3 text-xs text-ink-soft">Every class visits every subject once, and each subject always meets in the same room. Tweak any cell; problems light up red.</p>
         <div className="-mx-4 overflow-x-auto px-4">
           <table className="w-full min-w-[640px] border-separate border-spacing-1.5 text-sm">
@@ -120,7 +120,7 @@ function SubjectModal({ subject, onClose }: { subject: Subject | null; onClose: 
         <Field label="Description" hint="Organiser reference only. Not shown to students."><textarea className="field" value={f.description} onChange={set("description")} maxLength={400} /></Field>
         <div className="grid grid-cols-2 gap-3"><Field label="Out of (max mark)"><input className="field" inputMode="numeric" value={f.maxScore} onChange={set("maxScore")} /></Field><Field label="Colour"><input type="color" className="field !p-1" value={f.color} onChange={set("color")} /></Field></div>
         <Field label="Room" hint="Every class doing this subject meets here — the same room every time, whoever's in it."><input className="field font-mono" value={f.rooms} onChange={set("rooms")} placeholder="201-315" /></Field>
-        <div className="flex items-center justify-between rounded-xl border-2 border-line bg-white p-3"><div><div className="font-extrabold">Active</div><div className="text-xs text-ink-soft">Inactive subjects are ignored by scoring and auto-generate.</div></div><Switch label="Active" checked={f.active} onChange={(active) => setF((s) => ({ ...s, active }))} /></div>
+        <div className="flex items-center justify-between rounded-xl border-2 border-line bg-white p-3"><div><div className="font-extrabold">Active</div><div className="text-xs text-ink-soft">Inactive subjects are ignored by scoring.</div></div><Switch label="Active" checked={f.active} onChange={(active) => setF((s) => ({ ...s, active }))} /></div>
         <div className="flex items-center justify-between rounded-xl border-2 border-line bg-white p-3"><div><div className="font-extrabold">🧮 Runs the Maths toss challenge</div><div className="text-xs text-ink-soft">While a class is in this subject, students can solve 3 in a row on their phone to earn a toss. Only one subject at a time.</div></div><Switch label="Runs the Maths toss challenge" checked={f.isMathsChallenge} onChange={(isMathsChallenge) => setF((s) => ({ ...s, isMathsChallenge }))} /></div>
         <div className="flex items-center justify-between rounded-xl border-2 border-line bg-white p-3"><div><div className="font-extrabold">🔔 Runs the Buzzer round</div><div className="text-xs text-ink-soft">While a class is in this subject, students see a Buzzer tab for live trivia. Only one subject at a time.</div></div><Switch label="Runs the Buzzer round" checked={f.isBuzzerChallenge} onChange={(isBuzzerChallenge) => setF((s) => ({ ...s, isBuzzerChallenge }))} /></div>
         <button className="btn btn-primary w-full" disabled={pending || !f.name.trim()}>Save subject</button>

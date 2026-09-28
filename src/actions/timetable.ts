@@ -2,9 +2,7 @@
 
 import { z } from "zod";
 import { audit, parse, run, UserError, type ActionResult } from "@/lib/actions";
-import { generateTimetable } from "@/lib/domain/timetable";
 import { zonedToUtc } from "@/lib/domain/time";
-import type { ClassRow, PeriodRow, SubjectRow } from "@/lib/types";
 
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use a time like 18:30");
 
@@ -56,23 +54,6 @@ export async function setRotationRoom(input: { periodId: number; classId: number
     if (!rows.length) throw new UserError("That class has no subject in that period yet.");
     await audit(ctx, "timetable.room", `Room changed to ${v.room || "(blank)"}`, { data: v });
     return { message: `Room updated to ${v.room || "blank"}. Phones update automatically.` };
-  });
-}
-
-/** Wipe the grid and rebuild it as a collision-free rotation. */
-export async function generateRotations(): Promise<ActionResult> {
-  return run("manage", async (ctx) => {
-    const classes = await ctx.sql<ClassRow>`select * from classes order by sort_order, id`;
-    const periods = await ctx.sql<PeriodRow>`select * from periods order by number`;
-    const subjects = await ctx.sql<SubjectRow>`select * from subjects where active order by sort_order, id`;
-    if (!classes.length || !periods.length || !subjects.length) throw new UserError("You need at least one class, period and subject first.");
-    await ctx.sql`delete from rotations`;
-    const cells = generateTimetable(classes, periods, subjects);
-    for (const c of cells) {
-      await ctx.sql`insert into rotations (period_id, class_id, subject_id, room) values (${c.periodId}, ${c.classId}, ${c.subjectId}, ${c.room})`;
-    }
-    await audit(ctx, "timetable.generate", `Timetable regenerated (${cells.length} cells)`);
-    return { message: `Timetable generated: ${classes.length} classes × ${periods.length} periods.` };
   });
 }
 
