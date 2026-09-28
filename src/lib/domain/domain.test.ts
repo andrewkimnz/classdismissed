@@ -110,6 +110,41 @@ describe("timetable generator", () => {
   });
 });
 
+describe("timetable generator: minimises two classes doing the same subject together more than once", () => {
+  // 8 classes but only 4 subjects, so 2 classes share each subject each period. A plain "class c does
+  // subject (c + p) mod S" formula pins classes 1&5, 2&6, 3&7 and 4&8 together for the WHOLE day — same
+  // subject, same period, every single period, because that pairing falls out of the formula itself, not
+  // chance. The generator should spread who's grouped with whom instead of locking in one fixed pairing.
+  const classes = Array.from({ length: 8 }, (_, i) => klass(i + 1, `C${i + 1}`));
+  const periods = [1, 2, 3, 4].map((n) => ({ id: n, number: n, startsAt: new Date(), endsAt: new Date() }));
+  const subjects = [1, 2, 3, 4].map((i) => subject(i));
+  const cells = generateTimetable(classes, periods, subjects);
+
+  it("still gives every class each subject exactly once", () => {
+    for (const c of classes) {
+      const ids = cells.filter((x) => x.classId === c.id).map((x) => x.subjectId).sort();
+      assert.deepEqual(ids, [1, 2, 3, 4]);
+    }
+  });
+
+  it("no pair of classes does every subject together — the fixed-formula pairing is gone", () => {
+    const counts = new Map<string, number>();
+    for (const p of periods) {
+      const bySubject = new Map<number, number[]>();
+      for (const cell of cells.filter((x) => x.periodId === p.id)) bySubject.set(cell.subjectId, [...(bySubject.get(cell.subjectId) ?? []), cell.classId]);
+      for (const ids of bySubject.values()) {
+        for (let i = 0; i < ids.length; i++) {
+          for (let j = i + 1; j < ids.length; j++) {
+            const key = [ids[i], ids[j]].sort((a, b) => a - b).join(":");
+            counts.set(key, (counts.get(key) ?? 0) + 1);
+          }
+        }
+      }
+    }
+    for (const [pair, n] of counts) assert.ok(n < periods.length, `${pair} shared a subject in all ${periods.length} periods`);
+  });
+});
+
 describe("timetable generator: minimises repeated room-mates when a subject's room pool is scarce", () => {
   // 8 classes, only 2 subjects (so 4 classes share each subject each period) but each subject has just
   // 2 rooms — someone has to double up. A naive per-class room formula (station = floor(classIndex /

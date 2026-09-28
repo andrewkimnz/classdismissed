@@ -128,6 +128,123 @@ export interface GeneratedCell {
 const pairKey = (a: number, b: number) => (a < b ? `${a}:${b}` : `${b}:${a}`);
 
 /**
+ * How many periods each pair of classes spends doing the same subject together, summed over every
+ * pair and counting only the excess past their first time together (so a pair that's never together
+ * twice contributes nothing).
+ */
+function repeatedPairings(subjectAt: number[][]): number {
+  const periodCount = subjectAt[0]?.length ?? 0;
+  const coCount = new Map<string, number>();
+  for (let pi = 0; pi < periodCount; pi++) {
+    const byGroup = new Map<number, number[]>();
+    for (let ci = 0; ci < subjectAt.length; ci++) byGroup.set(subjectAt[ci][pi], [...(byGroup.get(subjectAt[ci][pi]) ?? []), ci]);
+    for (const group of byGroup.values()) {
+      for (let i = 0; i < group.length; i++) {
+        for (let j = i + 1; j < group.length; j++) {
+          const key = pairKey(group[i], group[j]);
+          coCount.set(key, (coCount.get(key) ?? 0) + 1);
+        }
+      }
+    }
+  }
+  let repeats = 0;
+  for (const n of coCount.values()) repeats += n - 1;
+  return repeats;
+}
+
+/** A small, seeded PRNG (mulberry32) so the "best of several tries" search below is deterministic —
+ * the same classes/periods/subjects always regenerate the same timetable. */
+function mulberry32(seed: number): () => number {
+  let s = seed | 0;
+  return () => {
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Fisher–Yates, using the given RNG. */
+function shuffled<T>(items: T[], rng: () => number): T[] {
+  const arr = [...items];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+/**
+ * The classic Latin square (class c does subject (c + p) mod S at period p) guarantees every class
+ * meets every subject exactly once, but two classes with the same `classIndex mod S` are locked into
+ * doing every subject together, at the same time, all day — the "same class [subject] together" the
+ * generator is meant to avoid, and a fixed formula like this has no freedom left to fix it: any class's
+ * subject sequence has to contain every subject exactly once, which pins down the whole row.
+ *
+ * So instead: split classes into "families" of up to S (one class per residue mod S), give each family
+ * its own shuffled subject order rather than the same one shifted, and try several different shuffles,
+ * keeping whichever spreads pairings out the most. Two classes from different families now only land on
+ * the same subject at the same time when their two families' shuffles happen to agree at that spot —
+ * not for the whole day, as a shared shift would guarantee. A final pass of "intercalate" swaps (trade
+ * two classes' subjects at two periods when each already has the other's subject there, which can never
+ * create a duplicate) squeezes out a bit more.
+ */
+function optimiseSubjectGrid(classCount: number, periodCount: number, subjectCount: number): number[][] {
+  const families = Math.ceil(classCount / subjectCount) || 1;
+  const buildWith = (rng: () => number): number[][] => {
+    const perms = Array.from({ length: families }, () => shuffled(Array.from({ length: subjectCount }, (_, i) => i), rng));
+    return Array.from({ length: classCount }, (_, ci) => {
+      const family = Math.floor(ci / subjectCount);
+      const withinFamily = ci % subjectCount;
+      return Array.from({ length: periodCount }, (_, pi) => perms[family][(withinFamily + pi) % subjectCount]);
+    });
+  };
+
+  let best = buildWith(mulberry32(1));
+  let bestCost = repeatedPairings(best);
+  const tries = Math.min(80, classCount * periodCount + 20); // more room to search on bigger timetables, capped for speed
+  for (let seed = 2; seed <= tries && bestCost > 0; seed++) {
+    const candidate = buildWith(mulberry32(seed));
+    const cost = repeatedPairings(candidate);
+    if (cost < bestCost) {
+      best = candidate;
+      bestCost = cost;
+    }
+  }
+
+  for (let pass = 0; pass < 8 && bestCost > 0; pass++) {
+    let improved = false;
+    for (let c1 = 0; c1 < periodCount; c1++) {
+      for (let c2 = c1 + 1; c2 < periodCount; c2++) {
+        for (let a = 0; a < classCount; a++) {
+          for (let b = a + 1; b < classCount; b++) {
+            const x = best[a][c1];
+            const y = best[a][c2];
+            if (x === y || best[b][c1] !== y || best[b][c2] !== x) continue; // not a valid intercalate
+            best[a][c1] = y;
+            best[a][c2] = x;
+            best[b][c1] = x;
+            best[b][c2] = y;
+            const newCost = repeatedPairings(best);
+            if (newCost < bestCost) {
+              bestCost = newCost;
+              improved = true;
+            } else {
+              best[a][c1] = x;
+              best[a][c2] = y;
+              best[b][c1] = y;
+              best[b][c2] = x;
+            }
+          }
+        }
+      }
+    }
+    if (!improved) break;
+  }
+  return best;
+}
+
+/**
  * Splits a group of classes sharing one subject-period into that subject's rooms, one class per room
  * when there are enough rooms to go round. When there aren't, `seenPairs` — every pair of classes
  * already put in a room together earlier in this same generation run — steers each class into whichever
@@ -165,22 +282,24 @@ function assignRooms(group: ClassRow[], rooms: string[], seenPairs: Set<string>)
 }
 
 /**
- * Latin-square timetable: class c in period p does subject (c + p) mod S. Every class meets every
- * subject once (while periods ≤ subjects), and each period's room assignment is chosen to minimise how
- * often the same two classes end up sharing a room together more than once across the day — unavoidable
- * only when a subject's own room pool is too small to seat its whole group at once.
+ * Every class meets every subject exactly once (while periods ≤ subjects). Which classes end up doing
+ * a subject together, period by period, is chosen to minimise how often the same two classes share a
+ * subject more than once across the day — and within a shared subject, which room each is in does the
+ * same for room-sharing, on the rare occasion a subject's own room pool is too small to seat its whole
+ * group at once.
  */
 export function generateTimetable(classes: ClassRow[], periods: PeriodRow[], subjects: SubjectRow[]): GeneratedCell[] {
   const cs = [...classes].sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
   const ps = [...periods].sort((a, b) => a.number - b.number);
   const ss = subjects.filter((s) => s.active).sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
   if (!ss.length) return [];
+  const subjectAt = optimiseSubjectGrid(cs.length, ps.length, ss.length);
   const cells: GeneratedCell[] = [];
   const seenPairs = new Set<string>();
   ps.forEach((p, pi) => {
     const groups = new Map<number, ClassRow[]>(); // subject index -> classes doing it this period
     cs.forEach((c, ci) => {
-      const si = (ci + pi) % ss.length;
+      const si = subjectAt[ci][pi];
       groups.set(si, [...(groups.get(si) ?? []), c]);
     });
     for (const [si, group] of groups) {
