@@ -72,25 +72,25 @@ const SUBJECTS = [
     name: "HISTORY", icon: "📜", color: "#B45F3C", tagline: "Try not to get caught.",
     description: "The teacher delivers an absurdly serious lesson. Your class has one secret mission.",
     activity: "Secretly eat chips without the teacher noticing. Points for stealth, style and crunch control.",
-    rooms: ["201-315", "201-323"],
+    rooms: ["201-315"],
   },
   {
     name: "SOCIAL STUDIES", icon: "🌏", color: "#2E86DE", tagline: "General knowledge, no phones.",
     description: "A pub quiz wearing a school uniform.",
     activity: "General trivia. Confer as a class, one answer per question.",
-    rooms: ["201-316", "201-324"],
+    rooms: ["201-316"],
   },
   {
     name: "MATHS", icon: "➗", color: "#8E5CF0", tagline: "Paper. Lots of paper.",
     description: "Numeracy, but make it a craft project.",
     activity: "Paper planes, paper basketball, a times-table sheet and bottle-cap flicking to the table edge.",
-    rooms: ["201-317", "201-325"],
+    rooms: ["201-317"],
   },
   {
     name: "GEOGRAPHY", icon: "🗺️", color: "#2FA36B", tagline: "Where in the world?",
     description: "Flags, landmarks and countries. Passport not required.",
     activity: "Name the flags, identify the landmarks, place the countries.",
-    rooms: ["201-318", "201-326"],
+    rooms: ["201-318"],
   },
 ];
 

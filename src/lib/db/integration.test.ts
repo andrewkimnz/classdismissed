@@ -95,7 +95,7 @@ describe("schema + demo seed (in-memory Postgres)", () => {
   it("stores JSON as real jsonb (not a double-encoded string) on every driver", async () => {
     const rows = await conn.sql<{ t: string }>`select jsonb_typeof(rooms) as t from subjects`;
     assert.ok(rows.length > 0 && rows.every((r) => r.t === "array"));
-    assert.ok(Array.isArray(w.subjects[0].rooms) && w.subjects[0].rooms.length === 2);
+    assert.ok(Array.isArray(w.subjects[0].rooms) && w.subjects[0].rooms.length === 1);
     const [r] = await conn.sql<{ v: number }>`select (${{ a: [1, 2, 3] }}::jsonb -> 'a' ->> 1)::int as v`;
     assert.equal(r.v, 2);
   });

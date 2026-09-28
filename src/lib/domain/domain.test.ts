@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { BoundaryRow, ClassRow, ModificationRow, ScoreRow, SubjectRow } from "@/lib/types";
+import type { BoundaryRow, ClassRow, EventRow, ModificationRow, PeriodRow, RotationRow, ScoreRow, SubjectRow, World } from "@/lib/types";
 import { computeClassResult, formatPct, letterFor, rankResults, validateBoundaries } from "./grades";
-import { generateTimetable } from "./timetable";
+import { generateTimetable, timetableIssues } from "./timetable";
 import { toHHMM, zonedToUtc } from "./time";
 import { codeFromScan } from "@/lib/auth/scan";
 
@@ -92,7 +92,7 @@ describe("class results", () => {
 describe("timetable generator", () => {
   const classes = Array.from({ length: 8 }, (_, i) => klass(i + 1, `C${i + 1}`));
   const periods = [1, 2, 3, 4].map((n) => ({ id: n, number: n, startsAt: new Date(), endsAt: new Date() }));
-  const subjects = [1, 2, 3, 4].map((i) => subject(i, [`R${i}a`, `R${i}b`]));
+  const subjects = [1, 2, 3, 4].map((i) => subject(i, [`R${i}`]));
   const cells = generateTimetable(classes, periods, subjects);
 
   it("fills every class × period", () => assert.equal(cells.length, 32));
@@ -102,11 +102,53 @@ describe("timetable generator", () => {
       assert.deepEqual(ids, [1, 2, 3, 4]);
     }
   });
-  it("never double-books a room in the same period", () => {
-    for (const p of periods) {
-      const rooms = cells.filter((x) => x.periodId === p.id).map((x) => x.room);
-      assert.equal(new Set(rooms).size, rooms.length);
+  it("every class doing a subject is in that subject's one room — the same room every time", () => {
+    for (const s of subjects) {
+      const rooms = cells.filter((x) => x.subjectId === s.id).map((x) => x.room);
+      assert.ok(rooms.every((r) => r === s.rooms[0]));
     }
+  });
+  it("never puts two different subjects in the same room at the same period", () => {
+    for (const p of periods) {
+      const byRoom = new Map<string, Set<number>>();
+      for (const cell of cells.filter((x) => x.periodId === p.id)) {
+        byRoom.set(cell.room, (byRoom.get(cell.room) ?? new Set()).add(cell.subjectId));
+      }
+      for (const subjectIds of byRoom.values()) assert.equal(subjectIds.size, 1);
+    }
+  });
+});
+
+describe("timetableIssues: a shared room is only a clash between different subjects", () => {
+  const period: PeriodRow = { id: 1, number: 1, startsAt: new Date(0), endsAt: new Date(0) };
+  const geography = subject(1, ["201-318"]);
+  const history = subject(2, ["201-315"]);
+  const a = klass(1, "1-A");
+  const b = klass(2, "1-B");
+  const rotation = (over: Partial<RotationRow>): RotationRow => ({ id: over.classId ?? 0, periodId: period.id, classId: 0, subjectId: geography.id, room: geography.rooms[0], ...over });
+
+  function world(rotations: RotationRow[], subjects: SubjectRow[]): World {
+    const event: EventRow = {
+      id: 1, name: "", tagline: "", eventDate: "2026-10-02", timezone: "Pacific/Auckland", venue: "", assemblyPoint: "",
+      phase: "school_day", phaseChangedAt: new Date(), scoringLocked: false, leaderboardMode: "exact", timetableMode: "manual",
+      currentPeriod: 1, notesRequired: 3, principalRoom: "", detentionRoom: "", detentionInstructions: "",
+    };
+    return {
+      event, classes: [a, b], students: [], subjects, periods: [period], rotations,
+      scores: [], boundaries: [], clubs: [], completions: [], notes: [], attempts: [], mods: [], detentions: [], tiers: [],
+    };
+  }
+
+  it("two classes doing the SAME subject in its one room is not a clash", () => {
+    const w = world([rotation({ classId: a.id, subjectId: geography.id, room: "201-318" }), rotation({ classId: b.id, subjectId: geography.id, room: "201-318" })], [geography, history]);
+    assert.deepEqual(timetableIssues(w).filter((i) => i.kind === "room"), []);
+  });
+
+  it("two DIFFERENT subjects landing in the same room at the same period is a real clash", () => {
+    const w = world([rotation({ classId: a.id, subjectId: geography.id, room: "201-318" }), rotation({ classId: b.id, subjectId: history.id, room: "201-318" })], [geography, history]);
+    const issues = timetableIssues(w).filter((i) => i.kind === "room");
+    assert.equal(issues.length, 1);
+    assert.match(issues[0].message, /both in room 201-318, but doing different subjects/);
   });
 });
 
@@ -142,42 +184,6 @@ describe("timetable generator: minimises two classes doing the same subject toge
       }
     }
     for (const [pair, n] of counts) assert.ok(n < periods.length, `${pair} shared a subject in all ${periods.length} periods`);
-  });
-});
-
-describe("timetable generator: minimises repeated room-mates when a subject's room pool is scarce", () => {
-  // 8 classes, only 2 subjects (so 4 classes share each subject each period) but each subject has just
-  // 2 rooms — someone has to double up. A naive per-class room formula (station = floor(classIndex /
-  // subjectCount), fixed all day) would pair the exact same two classes together in every period they
-  // share a room; the generator instead tracks who's already shared a room and steers around repeats.
-  const classes = Array.from({ length: 8 }, (_, i) => klass(i + 1, `C${i + 1}`));
-  const periods = [1, 2].map((n) => ({ id: n, number: n, startsAt: new Date(), endsAt: new Date() }));
-  const subjects = [1, 2].map((i) => subject(i, [`R${i}a`, `R${i}b`]));
-  const cells = generateTimetable(classes, periods, subjects);
-
-  it("still gives every class each subject exactly once", () => {
-    for (const c of classes) {
-      const ids = cells.filter((x) => x.classId === c.id).map((x) => x.subjectId).sort();
-      assert.deepEqual(ids, [1, 2]);
-    }
-  });
-
-  it("no two classes share a room more than once across the day", () => {
-    const counts = new Map<string, number>();
-    for (const p of periods) {
-      const byRoom = new Map<string, number[]>();
-      for (const cell of cells.filter((x) => x.periodId === p.id)) byRoom.set(cell.room, [...(byRoom.get(cell.room) ?? []), cell.classId]);
-      for (const ids of byRoom.values()) {
-        for (let i = 0; i < ids.length; i++) {
-          for (let j = i + 1; j < ids.length; j++) {
-            const key = [ids[i], ids[j]].sort((a, b) => a - b).join(":");
-            counts.set(key, (counts.get(key) ?? 0) + 1);
-          }
-        }
-      }
-    }
-    const repeated = [...counts.entries()].filter(([, n]) => n > 1);
-    assert.deepEqual(repeated, [], "every pair that shares a room does so at most once");
   });
 });
 

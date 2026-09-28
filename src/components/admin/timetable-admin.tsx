@@ -46,7 +46,7 @@ export function TimetableAdmin({ classes, subjects, periods, rotations, issues, 
       </Panel>
 
       <Panel title="Timetable matrix" right={canManage && <ConfirmButton size="sm" variant="plain" confirmLabel="Replace everything?" disabled={pending} onConfirm={() => act(() => generateRotations())}>✨ Auto-generate</ConfirmButton>}>
-        <p className="mb-3 text-xs text-ink-soft">Every class visits every subject once, with no shared rooms. Tweak any cell; problems light up red.</p>
+        <p className="mb-3 text-xs text-ink-soft">Every class visits every subject once, and each subject always meets in the same room. Tweak any cell; problems light up red.</p>
         <div className="-mx-4 overflow-x-auto px-4">
           <table className="w-full min-w-[640px] border-separate border-spacing-1.5 text-sm">
             <thead><tr><th className="w-16" />{periods.map((p) => <th key={p.id} className="display text-left text-base">Period {p.number}<div className="text-[11px] font-bold text-ink-soft">{p.start}–{p.end}</div></th>)}</tr></thead>
@@ -91,7 +91,7 @@ export function TimetableAdmin({ classes, subjects, periods, rotations, issues, 
         <ul className="grid gap-2.5 sm:grid-cols-2">
           {subjects.map((s) => (
             <li key={s.id} className={cn("rounded-2xl border-2 border-line bg-white p-3", !s.active && "opacity-55")}>
-              <div className="flex items-center gap-2.5"><span className="text-3xl">{s.icon}</span><div className="min-w-0 flex-1"><div className="display text-xl leading-tight">{s.name}</div><div className="text-xs font-bold text-ink-soft">out of {s.maxScore} · rooms {s.rooms.join(", ") || "—"}</div></div>{canManage && <button className="btn btn-sm" onClick={() => setEditing(s)}>Edit</button>}</div>
+              <div className="flex items-center gap-2.5"><span className="text-3xl">{s.icon}</span><div className="min-w-0 flex-1"><div className="display text-xl leading-tight">{s.name}</div><div className="text-xs font-bold text-ink-soft">out of {s.maxScore} · room {s.rooms[0] ?? "—"}</div></div>{canManage && <button className="btn btn-sm" onClick={() => setEditing(s)}>Edit</button>}</div>
               {s.tagline && <div className="hand mt-1 text-lg leading-none text-sakura-deep">{s.tagline}</div>}
             </li>
           ))}
@@ -119,7 +119,7 @@ function SubjectModal({ subject, onClose }: { subject: Subject | null; onClose: 
         <Field label="Activity notes" hint="Organiser reference only. Not shown to students."><textarea className="field" value={f.activity} onChange={set("activity")} maxLength={600} /></Field>
         <Field label="Description" hint="Organiser reference only. Not shown to students."><textarea className="field" value={f.description} onChange={set("description")} maxLength={400} /></Field>
         <div className="grid grid-cols-2 gap-3"><Field label="Out of (max mark)"><input className="field" inputMode="numeric" value={f.maxScore} onChange={set("maxScore")} /></Field><Field label="Colour"><input type="color" className="field !p-1" value={f.color} onChange={set("color")} /></Field></div>
-        <Field label="Room pool" hint="Comma separated. Auto-generate gives each class in the same subject its own room."><input className="field font-mono" value={f.rooms} onChange={set("rooms")} placeholder="201-315, 201-323" /></Field>
+        <Field label="Room" hint="Every class doing this subject meets here — the same room every time, whoever's in it."><input className="field font-mono" value={f.rooms} onChange={set("rooms")} placeholder="201-315" /></Field>
         <div className="flex items-center justify-between rounded-xl border-2 border-line bg-white p-3"><div><div className="font-extrabold">Active</div><div className="text-xs text-ink-soft">Inactive subjects are ignored by scoring and auto-generate.</div></div><Switch label="Active" checked={f.active} onChange={(active) => setF((s) => ({ ...s, active }))} /></div>
         <div className="flex items-center justify-between rounded-xl border-2 border-line bg-white p-3"><div><div className="font-extrabold">🧮 Runs the Maths toss challenge</div><div className="text-xs text-ink-soft">While a class is in this subject, students can solve 3 in a row on their phone to earn a toss. Only one subject at a time.</div></div><Switch label="Runs the Maths toss challenge" checked={f.isMathsChallenge} onChange={(isMathsChallenge) => setF((s) => ({ ...s, isMathsChallenge }))} /></div>
         <div className="flex items-center justify-between rounded-xl border-2 border-line bg-white p-3"><div><div className="font-extrabold">🔔 Runs the Buzzer round</div><div className="text-xs text-ink-soft">While a class is in this subject, students see a Buzzer tab for live trivia. Only one subject at a time.</div></div><Switch label="Runs the Buzzer round" checked={f.isBuzzerChallenge} onChange={(isBuzzerChallenge) => setF((s) => ({ ...s, isBuzzerChallenge }))} /></div>

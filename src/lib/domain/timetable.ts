@@ -93,15 +93,18 @@ export function timetableIssues(w: World): TimetableIssue[] {
         issues.push({ kind: "missing", message: `${c.name} has nothing in period ${p.number}.`, cells: [key(p.id, c.id)] });
       }
     }
+    // Classes doing the SAME subject share its one room on purpose — that's not a clash. Only different
+    // subjects landing in the same room at the same time is an actual double-booking.
     const byRoom = new Map<string, RotationRow[]>();
     for (const r of w.rotations.filter((x) => x.periodId === p.id && x.room.trim())) {
       const k = r.room.trim().toLowerCase();
       byRoom.set(k, [...(byRoom.get(k) ?? []), r]);
     }
     for (const [room, rs] of byRoom) {
-      if (rs.length > 1) {
+      const bySubject = new Set(rs.map((r) => r.subjectId));
+      if (bySubject.size > 1) {
         const names = rs.map((r) => w.classes.find((c) => c.id === r.classId)?.name).join(" & ");
-        issues.push({ kind: "room", message: `Period ${p.number}: ${names} are both in room ${room.toUpperCase()}.`, cells: rs.map((r) => key(p.id, r.classId)) });
+        issues.push({ kind: "room", message: `Period ${p.number}: ${names} are both in room ${room.toUpperCase()}, but doing different subjects.`, cells: rs.map((r) => key(p.id, r.classId)) });
       }
     }
   }
@@ -245,48 +248,12 @@ function optimiseSubjectGrid(classCount: number, periodCount: number, subjectCou
 }
 
 /**
- * Splits a group of classes sharing one subject-period into that subject's rooms, one class per room
- * when there are enough rooms to go round. When there aren't, `seenPairs` — every pair of classes
- * already put in a room together earlier in this same generation run — steers each class into whichever
- * room currently has the fewest classmates it's already shared a room with, so a room shortage spreads
- * across different classes instead of repeatedly pairing up the same two. Updates `seenPairs` in place
- * with whatever pairings this period's assignment creates.
- */
-function assignRooms(group: ClassRow[], rooms: string[], seenPairs: Set<string>): Map<number, string> {
-  const assignment = new Map<number, string>();
-  if (!rooms.length) {
-    for (const c of group) assignment.set(c.id, "");
-    return assignment;
-  }
-  const buckets: ClassRow[][] = rooms.map(() => []);
-  for (const c of group) {
-    let best = 0;
-    let bestScore = Infinity;
-    buckets.forEach((bucket, i) => {
-      const conflicts = bucket.filter((other) => seenPairs.has(pairKey(c.id, other.id))).length;
-      const score = conflicts * 1000 + bucket.length; // avoiding a repeat pairing matters far more than balancing bucket sizes
-      if (score < bestScore) {
-        bestScore = score;
-        best = i;
-      }
-    });
-    buckets[best].push(c);
-    assignment.set(c.id, rooms[best]);
-  }
-  for (const bucket of buckets) {
-    for (let i = 0; i < bucket.length; i++) {
-      for (let j = i + 1; j < bucket.length; j++) seenPairs.add(pairKey(bucket[i].id, bucket[j].id));
-    }
-  }
-  return assignment;
-}
-
-/**
  * Every class meets every subject exactly once (while periods ≤ subjects). Which classes end up doing
  * a subject together, period by period, is chosen to minimise how often the same two classes share a
- * subject more than once across the day — and within a shared subject, which room each is in does the
- * same for room-sharing, on the rare occasion a subject's own room pool is too small to seat its whole
- * group at once.
+ * subject more than once across the day. Every class doing a given subject meets in that subject's one
+ * room (`rooms[0]`) — a subject is always in the same room, whoever's in it — so a room is only ever
+ * "double-booked" when two DIFFERENT subjects land on the same room at the same period, which
+ * `timetableIssues` flags as a real clash.
  */
 export function generateTimetable(classes: ClassRow[], periods: PeriodRow[], subjects: SubjectRow[]): GeneratedCell[] {
   const cs = [...classes].sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
@@ -295,18 +262,11 @@ export function generateTimetable(classes: ClassRow[], periods: PeriodRow[], sub
   if (!ss.length) return [];
   const subjectAt = optimiseSubjectGrid(cs.length, ps.length, ss.length);
   const cells: GeneratedCell[] = [];
-  const seenPairs = new Set<string>();
   ps.forEach((p, pi) => {
-    const groups = new Map<number, ClassRow[]>(); // subject index -> classes doing it this period
     cs.forEach((c, ci) => {
-      const si = subjectAt[ci][pi];
-      groups.set(si, [...(groups.get(si) ?? []), c]);
+      const s = ss[subjectAt[ci][pi]];
+      cells.push({ classId: c.id, periodId: p.id, subjectId: s.id, room: s.rooms[0] ?? "" });
     });
-    for (const [si, group] of groups) {
-      const s = ss[si];
-      const assignment = assignRooms(group, s.rooms, seenPairs);
-      for (const c of group) cells.push({ classId: c.id, periodId: p.id, subjectId: s.id, room: assignment.get(c.id) ?? "" });
-    }
   });
   return cells;
 }

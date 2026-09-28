@@ -243,8 +243,10 @@ Notes: every screen is server-rendered on demand (nothing touches the database a
    Tune **grade boundaries** and **risk tiers** (success/failure %, detention on failure): all editable.
 2. *Students → Import list*, then eyeball class sizes (or "Auto-balance"). *Print login cards* (QR + code).
 3. *Timetable & subjects*: set rotation times, press **Auto-generate** (Latin-square: every class meets every
-   subject once, no shared rooms), tweak cells; collisions light up red. Edit subjects (name, tagline,
-   activity text, max mark, room pool).
+   subject once, minimising how often the same two classes end up doing a subject together more than once),
+   tweak cells; collisions light up red. Edit subjects (name, tagline, activity text, max mark, room — each
+   subject always meets in that one room, whoever's in it; a "collision" is now only two *different* subjects
+   sharing a room at once).
 4. *Clubs*: add/edit/remove (removed = hidden, restorable, notes kept), set rooms, decide which award a note.
 5. **Rehearse** with `--profile=fresh` (or the demo), then press **Start the event fresh** (Event control, bottom of the page).
 
