@@ -81,8 +81,6 @@ describe("schema + demo seed (in-memory Postgres)", () => {
     const boards = computeFinalStats(w);
     const highest = boards.find((b) => b.id === "highest-final")!;
     assert.equal(highest.entries[0].isWinner, true);
-    assert.ok(boards.find((b) => b.id === "most-wanted")!.entries.length > 0);
-    assert.ok(boards.filter((b) => b.scope === "student").every((b) => b.id === "most-wanted"), "only detention is an individual stat now");
   });
 
   it("prevents a class earning the same club's note twice", async () => {

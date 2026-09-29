@@ -77,20 +77,18 @@ export interface StatBoard {
   id: string;
   title: string;
   emoji: string;
-  scope: "class" | "student";
   blurb: string;
   entries: StatEntry[];
 }
 
 /**
- * The flexible final-stats engine. Each definition picks a value per class or
- * student; boards rank descending, drop zeros (unless told otherwise) and mark
- * every tied leader as a winner. Add a new stat by adding one line here.
+ * The flexible final-stats engine. Each definition picks a value per class;
+ * boards rank descending, drop zeros (unless told otherwise) and mark every
+ * tied leader as a winner. Add a new stat by adding one line here.
  */
 export function computeFinalStats(w: World, limit = 5): StatBoard[] {
   const standings = computeStandings(w);
   const classStats = computeClassStats(w);
-  const classOf = (id: number | null) => w.classes.find((c) => c.id === id);
 
   type ClassDef = { id: string; title: string; emoji: string; blurb: string; value: (r: ClassResult) => number | null; display: (r: ClassResult, v: number) => string; keepZero?: boolean };
   const classDefs: ClassDef[] = [
@@ -112,44 +110,12 @@ export function computeFinalStats(w: World, limit = 5): StatBoard[] {
       .sort((a, b) => b.v - a.v || a.r.klass.name.localeCompare(b.r.klass.name));
     const top = raw[0]?.v;
     return {
-      id: d.id, title: d.title, emoji: d.emoji, blurb: d.blurb, scope: "class" as const,
+      id: d.id, title: d.title, emoji: d.emoji, blurb: d.blurb,
       entries: raw.slice(0, limit).map(({ r, v }) => ({
         id: r.klass.id, name: `Class ${r.klass.name}`, color: r.klass.color, value: v, display: d.display(r, v), isWinner: v === top,
       })),
     };
   });
 
-  // Notes, clubs and attempts are TEAM results now, so the only individual board is the rap sheet.
-  type StudentDef = { id: string; title: string; emoji: string; blurb: string; value: (id: number) => number; display: (id: number) => string };
-  const own = (id: number) => w.detentions.filter((d) => d.studentId === id && d.status !== "cancelled");
-  const studentDefs: StudentDef[] = [
-    {
-      id: "most-wanted", title: "Most Wanted Student", emoji: "🚔", blurb: "The repeat offender. Their file is thicker than the textbook.",
-      // Total detentions first; personal ones (not handed out to the whole team) break ties.
-      value: (id) => own(id).length * 100 + own(id).filter((d) => d.attemptId === null).length,
-      display: (id) => `${own(id).length} detention${own(id).length === 1 ? "" : "s"}`,
-    },
-  ];
-
-  const studentBoards: StatBoard[] = studentDefs.map((d) => {
-    const raw = w.students
-      .map((st) => ({ st, v: d.value(st.id) }))
-      .filter((x) => x.v > 0)
-      .sort((a, b) => b.v - a.v || a.st.name.localeCompare(b.st.name));
-    const top = raw[0]?.v;
-    return {
-      id: d.id, title: d.title, emoji: d.emoji, blurb: d.blurb, scope: "student" as const,
-      entries: raw.slice(0, limit).map(({ st, v }) => ({
-        id: st.id,
-        name: st.name,
-        sub: classOf(st.classId) ? `Class ${classOf(st.classId)!.name}` : undefined,
-        color: classOf(st.classId)?.color,
-        value: v,
-        display: d.display(st.id),
-        isWinner: v === top,
-      })),
-    };
-  });
-
-  return [...classBoards, ...studentBoards];
+  return classBoards;
 }
