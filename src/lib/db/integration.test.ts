@@ -240,7 +240,6 @@ describe("start the event fresh", () => {
     const [stu] = await c.sql<{ id: number; classId: number }>`select id, class_id from students where name = 'Andrew Kim'`;
     await c.sql`insert into photos (kind, student_id, url, storage_path) values ('student_id', ${stu.id}, '/uploads/x.jpg', 'x.jpg')`;
     await c.sql`insert into photos (kind, class_id, url, storage_path) values ('class_team', ${stu.classId}, '/uploads/t.jpg', 't.jpg')`;
-    await c.sql`update students set custom_award = 'BEST FORGER' where id = ${stu.id}`;
     await c.sql`update events set scoring_locked = true, current_period = 3 where id = 1`;
     const [period] = await c.sql<{ id: number }>`select id from periods order by number limit 1`;
     await c.sql`insert into math_challenges (student_id, period_id, streak, question, answer, status)
@@ -271,8 +270,6 @@ describe("start the event fresh", () => {
     assert.deepEqual([buzzer.questionNumber, buzzer.buzzedStudentId], [0, null], "the buzzer round is back to the start");
     const [ev] = await c.sql<{ phase: string; currentPeriod: number; scoringLocked: boolean }>`select phase, current_period, scoring_locked from events`;
     assert.deepEqual([ev.phase, ev.currentPeriod, ev.scoringLocked], ["school_day", 0, false]);
-    const [award] = await c.sql<{ n: number }>`select count(*)::int as n from students where custom_award is not null`;
-    assert.equal(award.n, 0);
 
     // …and everything set up beforehand is exactly as it was (names, numbers, classes, codes, photos)
     assert.deepEqual(await setup(), kept);

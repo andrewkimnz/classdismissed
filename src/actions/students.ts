@@ -50,14 +50,14 @@ export async function createStudent(input: { name: string; classId: number | nul
 }
 
 export async function updateStudent(input: {
-  id: number; name: string; classId: number | null; studentNo: number; customAward: string; notes: string;
+  id: number; name: string; classId: number | null; studentNo: number; notes: string;
 }): Promise<ActionResult> {
   return run("manage", async (ctx) => {
-    const v = parse(z.object({ id, name, classId: id.nullable(), studentNo: id, customAward: z.string().trim().max(60), notes: z.string().trim().max(500) }), input);
+    const v = parse(z.object({ id, name, classId: id.nullable(), studentNo: id, notes: z.string().trim().max(500) }), input);
     try {
       const rows = await ctx.sql`
         update students set name = ${v.name}, class_id = ${v.classId}, student_no = ${v.studentNo},
-          custom_award = ${v.customAward || null}, notes = ${v.notes} where id = ${v.id} returning id`;
+          notes = ${v.notes} where id = ${v.id} returning id`;
       if (!rows.length) throw new UserError("That student no longer exists.");
     } catch (e) {
       if (isUniqueViolation(e)) throw new UserError(`${studentTag(v.studentNo)} is already taken.`);
@@ -155,16 +155,5 @@ export async function autoAssignUnassigned(): Promise<ActionResult> {
     }
     await audit(ctx, "student.auto_assign", `Auto-assigned ${rows.length} students to balance classes`);
     return { message: rows.length ? `Assigned ${rows.length} students to the smallest classes.` : "Everyone already has a class." };
-  });
-}
-
-/** Set (or clear) the personalised special award shown on a student's final keepsake. */
-export async function setCustomAward(input: { id: number; award: string }): Promise<ActionResult> {
-  return run("manage", async (ctx) => {
-    const v = parse(z.object({ id, award: z.string().trim().max(60) }), input);
-    const rows = await ctx.sql<{ name: string }>`update students set custom_award = ${v.award || null} where id = ${v.id} returning name`;
-    if (!rows.length) throw new UserError("That student no longer exists.");
-    await audit(ctx, "student.award", `${rows[0].name}'s award: ${v.award || "(automatic)"}`, { entity: "student", entityId: v.id });
-    return { message: v.award ? `${rows[0].name} will receive “${v.award.toUpperCase()}”.` : `${rows[0].name}'s award is automatic again.` };
   });
 }

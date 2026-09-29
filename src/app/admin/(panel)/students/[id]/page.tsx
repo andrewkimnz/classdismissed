@@ -9,7 +9,7 @@ import { can, requireAdminPage } from "@/lib/auth/admin";
 import { displayCode, studentTag } from "@/lib/auth/codes";
 import { getStudentCodes } from "@/lib/data/admin";
 import { getWorld } from "@/lib/data/world";
-import { awardFor, computeStudentStats } from "@/lib/domain/stats";
+import { computeStudentStats } from "@/lib/domain/stats";
 import { formatDelta } from "@/lib/domain/grades";
 import { formatDateTime } from "@/lib/domain/time";
 import { baseUrl } from "@/lib/url";
@@ -47,7 +47,6 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
           <Panel title="Record">
             <p className="mb-2 text-xs text-ink-soft">Teacher’s Notes, clubs and Principal’s Office attempts belong to the <b>class</b>{k ? <> (<Link href={`/admin/classes/${k.id}`} className="font-extrabold text-accent">Class {k.name}</Link>)</> : ""}. Their own record is detention.</p>
             <div className="mb-3 flex flex-wrap gap-2"><Chip tone="soft">📝 class earned {stats.notes}</Chip><Chip tone="soft">🎒 {stats.clubsCompleted} clubs</Chip><Chip tone="soft">🕵️ {stats.attempts} attempts</Chip><Chip tone="soft">🔓 {stats.successes} break-ins</Chip><Chip tone="soft">🚨 {stats.detentions} detentions</Chip></div>
-            <p className="mb-3 text-sm">Keepsake award: <b>{awardFor(stats, s.customAward).title}</b></p>
             <ul className="space-y-1 text-sm">
               {dets.map((d) => <li key={`d${d.id}`}>🚨 {d.reason} · <b>{d.status}</b> <span className="text-xs text-ink-soft">· {formatDateTime(d.enteredAt, tz)}</span></li>)}
               {dets.length === 0 && <li className="text-ink-soft">No detentions.</li>}
@@ -56,7 +55,7 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
           </Panel>
         </div>
         <StudentEditor
-          student={{ id: s.id, name: s.name, studentNo: s.studentNo, classId: s.classId, customAward: s.customAward ?? "", notes: s.notes, attendance: s.attendance }}
+          student={{ id: s.id, name: s.name, studentNo: s.studentNo, classId: s.classId, notes: s.notes, attendance: s.attendance }}
           classes={w.classes.map((c) => ({ id: c.id, name: c.name }))}
           canManage={can(admin, "manage")}
         />

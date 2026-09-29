@@ -8,7 +8,7 @@ Two phases, one product:
 
 | | **School Day** | **After School** | **Event Complete** |
 |---|---|---|---|
-| Students | ID card, per-class timetable ("right now" / "your next class"), subject marks | Clubs, their class's Teacher's Notes, detention | Keepsake: original → final grade, stats, special award |
+| Students | ID card, per-class timetable ("right now" / "your next class"), subject marks | Clubs, their class's Teacher's Notes, detention | Keepsake: original → final grade, stats |
 | Execs | Ring the rotation bell, enter class scores | Award notes to classes, record team Principal's Office runs, serve detentions | Final stats, awards |
 
 Flip the phase from the admin panel and every student phone changes within seconds (a full-screen
@@ -271,8 +271,8 @@ the grade change and detentions are reversed and the notes refunded. *Detention*
 detention individually.
 
 **Finale**: *Leaderboard* (exact numbers, staff-only) → announce winners → *Event control → Event Complete*.
-Every student's Home becomes the keepsake. *Final stats* has all the special awards and lets you override any
-student's award. Upload class/team photos on each class page and a final photo per student (optional).
+Every student's Home becomes the keepsake. *Final stats* has the class and student award boards. Upload
+class/team photos on each class page and a final photo per student (optional).
 
 ### Can't sign in to the staff room?
 Run `npm run admin:reset`. It asks for your Supabase connection string (and database password), then **lists the admin
@@ -330,7 +330,6 @@ Supabase **Realtime** push (polling covers it either way), the **Scan my QR card
 * **Crest**: `src/components/ui/crest.tsx` draws the shield and book around the KAC dragon in `public/kac-dragon.png` (transparent PNG, ~256px). Swap that file to change the mascot; the shield/book/size live in the component. It's used on every ID card, header, login card and keepsake.
 * **Colours / fonts**: tokens at the top of `src/app/globals.css`; fonts in `src/app/layout.tsx`.
 * **New final stat**: add one line to `computeFinalStats` in `src/lib/domain/stats.ts`.
-* **New special award rule**: `awardFor` in the same file.
 * **Risk-tier variations later**: add columns to `risk_tiers` / the tier form; attempts snapshot the numbers used.
 
 ## Troubleshooting

@@ -22,7 +22,7 @@ export function StartFreshPanel({ counts }: { counts: ResetCounts }) {
       <div className="mb-2 rounded-xl border-2 border-dashed border-pen bg-pen/5 p-3 text-sm">
         <div className="label mb-1 text-pen">Will be cleared now</div>
         {nothing ? "Nothing yet: the event is already fresh." : items.filter(([n]) => n > 0).map(([n, label]) => `${n} ${label}`).join(" · ")}
-        <div className="mt-1 text-xs text-ink-soft">Everyone is marked “expected” again and custom awards are removed.</div>
+        <div className="mt-1 text-xs text-ink-soft">Everyone is marked “expected” again.</div>
       </div>
       <div className="mb-3 rounded-xl border-2 border-dashed border-line bg-white p-3 text-sm">
         <div className="label mb-1 text-emerald-700">Stays exactly as it is</div>

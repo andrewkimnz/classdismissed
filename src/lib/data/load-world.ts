@@ -20,7 +20,7 @@ export async function loadWorld(sql: Sql): Promise<World> {
       select c.*, (select p.url from photos p where p.class_id = c.id and p.kind = 'class_team' and p.is_current limit 1) as team_photo_url
       from classes c order by c.sort_order, c.id`,
     sql<StudentRow>`
-      select s.id, s.student_no, s.name, s.class_id, s.attendance, s.checked_in_at, s.custom_award, s.notes, s.created_at,
+      select s.id, s.student_no, s.name, s.class_id, s.attendance, s.checked_in_at, s.notes, s.created_at,
         (select p.url from photos p where p.student_id = s.id and p.kind = 'student_id' and p.is_current limit 1) as photo_url,
         (select p.url from photos p where p.student_id = s.id and p.kind = 'final' and p.is_current limit 1) as final_photo_url
       from students s order by s.student_no`,

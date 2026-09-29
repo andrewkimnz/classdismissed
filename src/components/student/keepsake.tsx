@@ -1,7 +1,7 @@
 import { studentTag } from "@/lib/auth/codes";
 import { cn } from "@/lib/cn";
 import { formatEventDate } from "@/lib/domain/time";
-import { awardFor, type StudentStats } from "@/lib/domain/stats";
+import type { StudentStats } from "@/lib/domain/stats";
 import { formatDelta, formatPct, type ClassResult } from "@/lib/domain/grades";
 import type { EventRow, StudentRow } from "@/lib/types";
 import { Avatar } from "@/components/ui/avatar";
@@ -14,7 +14,6 @@ export function Keepsake({
 }: {
   student: StudentRow; result: ClassResult | null; stats: StudentStats; event: EventRow; classPhotoUrl: string | null; classRankLabel: string | null;
 }) {
-  const award = awardFor(stats, student.customAward);
   const photo = student.finalPhotoUrl ?? student.photoUrl;
   const up = (result?.modDelta ?? 0) > 0;
   const down = (result?.modDelta ?? 0) < 0;
@@ -84,12 +83,6 @@ export function Keepsake({
             <div className="hand mt-1 text-center text-2xl leading-none">Class {result?.klass.name}</div>
           </div>
         )}
-
-        <div className="mt-6 rounded-2xl border-[3px] border-dashed border-sun bg-sun/10 p-4 text-center">
-          <div className="text-[10px] font-extrabold uppercase tracking-[0.25em] text-sun">Special award</div>
-          <div className="stamp mt-1 text-[24px] leading-tight text-sun" style={{ mixBlendMode: "normal" }}>&ldquo;{award.title}&rdquo;</div>
-          <p className="hand mt-2 text-xl leading-tight text-white/85">{award.blurb}</p>
-        </div>
       </div>
     </article>
   );

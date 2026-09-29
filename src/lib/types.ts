@@ -51,7 +51,6 @@ export interface StudentRow {
   classId: number | null;
   attendance: "expected" | "present" | "absent";
   checkedInAt: Date | null;
-  customAward: string | null;
   notes: string;
   photoUrl: string | null;
   finalPhotoUrl: string | null;

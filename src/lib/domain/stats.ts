@@ -63,24 +63,6 @@ export function computeStudentStats(w: World): Map<number, StudentStats> {
   return out;
 }
 
-export interface Award {
-  title: string;
-  blurb: string;
-}
-
-/** Rule-based "special award". An organiser-set custom award always wins. */
-export function awardFor(stats: StudentStats, custom?: string | null): Award {
-  if (custom?.trim()) return { title: custom.trim().toUpperCase(), blurb: "Personally awarded by the staff room." };
-  if (stats.successes >= 1) return { title: "ACADEMIC FRAUDSTER", blurb: "Altered official school records and (almost) got away with it." };
-  if (stats.detentions >= 2) return { title: "REPEAT OFFENDER", blurb: "The staff room knows your name. And your parents' number." };
-  if (stats.attempts >= 1) return { title: "CAUGHT RED-HANDED", blurb: "Bold plan. Terrible stealth." };
-  if (stats.detentions >= 1) return { title: "CRUMB SUSPECT", blurb: "Seen near the scene with suspicious snack breath." };
-  if (stats.clubsCompleted >= 4) return { title: "CLUB PRESIDENT", blurb: "Joined everything. Finished everything. Sleep is optional." };
-  if (stats.notes >= 3) return { title: "TEACHER'S PET", blurb: "Collected notes like they were collectible cards." };
-  if (stats.notes >= 1) return { title: "MODEL STUDENT", blurb: "Quietly excellent. Suspiciously well-behaved." };
-  return { title: "MYSTERIOUS TRANSFER STUDENT", blurb: "Nobody saw you arrive. Nobody saw you leave." };
-}
-
 export interface StatEntry {
   id: number;
   name: string;

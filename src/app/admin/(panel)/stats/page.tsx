@@ -1,10 +1,9 @@
-import { AwardsTable } from "@/components/admin/awards-table";
-import { PageHeader, Panel } from "@/components/admin/ui";
+import { PageHeader } from "@/components/admin/ui";
 import { Chip } from "@/components/ui/kit";
-import { can, requireAdminPage } from "@/lib/auth/admin";
+import { requireAdminPage } from "@/lib/auth/admin";
 import { readableOn } from "@/lib/cn";
 import { getWorld } from "@/lib/data/world";
-import { awardFor, computeFinalStats, computeStudentStats, type StatBoard } from "@/lib/domain/stats";
+import { computeFinalStats, type StatBoard } from "@/lib/domain/stats";
 
 export const metadata = { title: "Final stats" };
 
@@ -35,11 +34,9 @@ function Board({ b }: { b: StatBoard }) {
 }
 
 export default async function StatsPage() {
-  const admin = await requireAdminPage("manage");
+  await requireAdminPage("manage");
   const w = await getWorld();
   const boards = computeFinalStats(w);
-  const stats = computeStudentStats(w);
-  const rows = w.students.map((s) => ({ id: s.id, name: s.name, className: w.classes.find((c) => c.id === s.classId)?.name ?? null, auto: awardFor(stats.get(s.id)!, null).title, custom: s.customAward ?? "" }));
   void readableOn;
   return (
     <>
@@ -48,7 +45,6 @@ export default async function StatsPage() {
       <div className="mb-6 grid gap-3 md:grid-cols-2">{boards.filter((b) => b.scope === "class").map((b) => <Board key={b.id} b={b} />)}</div>
       <h2 className="display mb-2 text-2xl">Student awards</h2>
       <div className="mb-6 grid gap-3 md:grid-cols-2">{boards.filter((b) => b.scope === "student").map((b) => <Board key={b.id} b={b} />)}</div>
-      <Panel title="Keepsake awards"><p className="mb-3 text-sm text-ink-soft">Every student’s keepsake shows a special award. It’s automatic, but you can override any of them.</p><AwardsTable rows={rows} canManage={can(admin, "manage")} /></Panel>
     </>
   );
 }

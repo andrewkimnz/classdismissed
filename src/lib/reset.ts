@@ -5,8 +5,8 @@ import type { Sql } from "@/lib/db/sql";
  *
  * CLEARS everything that happened during the event: class scores, club completions and
  * Teacher's Notes, Principal's Office attempts, grade changes, detentions, check-ins
- * (everyone goes back to "expected"), custom awards. The event returns to School Day,
- * before the first bell, with scoring unlocked.
+ * (everyone goes back to "expected"). The event returns to School Day, before the first
+ * bell, with scoring unlocked.
  *
  * KEEPS everything set up before the event: classes and their names/colours, students
  * (numbers, class, login codes, ID and team photos), clubs, subjects, timetable and rooms,
@@ -65,7 +65,7 @@ export async function resetEventData(sql: Sql): Promise<ResetCounts> {
   await sql`delete from teacher_notes`;
   await sql`delete from club_completions`;
   await sql`delete from class_subject_scores`;
-  await sql`update students set attendance = 'expected', checked_in_at = null, custom_award = null`;
+  await sql`update students set attendance = 'expected', checked_in_at = null`;
   await sql`update events set phase = 'school_day', phase_changed_at = now(), current_period = 0, scoring_locked = false where id = 1`;
   return counts;
 }

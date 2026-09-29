@@ -6,13 +6,13 @@ import { deleteStudent, regenerateLoginCode, setAttendance, signOutEverywhere, u
 import { ConfirmButton, Field, Panel, Segmented, useAct } from "@/components/admin/ui";
 
 interface Props {
-  student: { id: number; name: string; studentNo: number; classId: number | null; customAward: string; notes: string; attendance: "expected" | "present" | "absent" };
+  student: { id: number; name: string; studentNo: number; classId: number | null; notes: string; attendance: "expected" | "present" | "absent" };
   classes: { id: number; name: string }[];
   canManage: boolean;
 }
 
 export function StudentEditor({ student, classes, canManage }: Props) {
-  const [f, setF] = useState({ name: student.name, classId: student.classId === null ? "" : String(student.classId), studentNo: String(student.studentNo), customAward: student.customAward, notes: student.notes });
+  const [f, setF] = useState({ name: student.name, classId: student.classId === null ? "" : String(student.classId), studentNo: String(student.studentNo), notes: student.notes });
   const { act, pending } = useAct();
   const router = useRouter();
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setF((s) => ({ ...s, [k]: e.target.value }));
@@ -21,13 +21,12 @@ export function StudentEditor({ student, classes, canManage }: Props) {
     <div className="space-y-4">
       <Panel title="Attendance"><Segmented value={student.attendance} disabled={pending} onChange={(attendance) => act(() => setAttendance({ id: student.id, attendance }))} options={[{ value: "present", label: "✓ Present" }, { value: "expected", label: "Expected" }, { value: "absent", label: "Absent" }]} /></Panel>
       <Panel title="Details">
-        <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); act(() => updateStudent({ id: student.id, name: f.name, classId: f.classId ? Number(f.classId) : null, studentNo: Number(f.studentNo), customAward: f.customAward, notes: f.notes })); }}>
+        <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); act(() => updateStudent({ id: student.id, name: f.name, classId: f.classId ? Number(f.classId) : null, studentNo: Number(f.studentNo), notes: f.notes })); }}>
           <Field label="Full name"><input className="field" value={f.name} onChange={set("name")} disabled={!canManage} required /></Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Class"><select className="field" value={f.classId} onChange={set("classId")} disabled={!canManage}><option value="">Unassigned</option>{classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>
             <Field label="Student no."><input className="field" inputMode="numeric" value={f.studentNo} onChange={set("studentNo")} disabled={!canManage} /></Field>
           </div>
-          <Field label="Special award override" hint="Leave blank for the automatic award on their keepsake."><input className="field" value={f.customAward} onChange={set("customAward")} disabled={!canManage} maxLength={60} placeholder="e.g. Most Likely To Forge A Signature" /></Field>
           <Field label="Organiser notes" hint="Private. Students never see this."><textarea className="field" value={f.notes} onChange={set("notes")} disabled={!canManage} maxLength={500} /></Field>
           {canManage && <button className="btn btn-primary w-full" disabled={pending}>Save changes</button>}
         </form>
