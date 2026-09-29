@@ -6,9 +6,9 @@ import { ConfirmButton, Panel, useAct } from "@/components/admin/ui";
 import { Chip } from "@/components/ui/kit";
 import { cn, readableOn } from "@/lib/cn";
 import { formatDelta } from "@/lib/domain/grades";
+import { RECKLESS } from "@/lib/domain/principal";
 import { timeAgo } from "@/lib/domain/time";
 
-type Tier = { id: number; name: string; icon: string; successDelta: number; failureDelta: number; failureDetention: boolean; enabled: boolean };
 interface ClassItem { id: number; name: string; color: string; members: number; earned: number; spent: number; available: number; required: number; why: string | null }
 interface HistoryItem {
   id: number; classId: number; className: string; classColor: string; status: string; outcome: "success" | "failure" | null; tierName: string; tierIcon: string;
@@ -16,29 +16,26 @@ interface HistoryItem {
 }
 interface ModItem { id: number; className: string; delta: number; reason: string; at: string; revoked: boolean }
 
-interface Props { tiers: Tier[]; classes: ClassItem[]; history: HistoryItem[]; mods: ModItem[]; room: string }
+interface Props { classes: ClassItem[]; history: HistoryItem[]; mods: ModItem[]; room: string }
 
-const preview = (t: Tier | undefined, outcome: "success" | "failure") =>
-  !t ? "" : outcome === "success" ? formatDelta(t.successDelta) : `${t.failureDelta === 0 ? "±0%" : formatDelta(t.failureDelta)}${t.failureDetention ? " + class detention" : ""}`;
+const preview = (outcome: "success" | "failure") =>
+  outcome === "success" ? formatDelta(RECKLESS.successDelta) : `${formatDelta(RECKLESS.failureDelta)} + class detention`;
 
-function OutcomeButtons({ tier, disabled, onPick }: { tier?: Tier; disabled?: boolean; onPick: (o: "success" | "failure") => void }) {
+function OutcomeButtons({ disabled, onPick }: { disabled?: boolean; onPick: (o: "success" | "failure") => void }) {
   return (
     <div className="grid grid-cols-2 gap-2.5">
-      <button className="btn btn-good btn-lg flex-col !gap-0 !py-2" disabled={disabled} onClick={() => onPick("success")}>✅ SUCCESS<span className="text-sm font-bold">{preview(tier, "success")}</span></button>
-      <button className="btn btn-danger btn-lg flex-col !gap-0 !py-2" disabled={disabled} onClick={() => onPick("failure")}>🚨 CAUGHT<span className="text-sm font-bold">{preview(tier, "failure")}</span></button>
+      <button className="btn btn-good btn-lg flex-col !gap-0 !py-2" disabled={disabled} onClick={() => onPick("success")}>✅ SUCCESS<span className="text-sm font-bold">{preview("success")}</span></button>
+      <button className="btn btn-danger btn-lg flex-col !gap-0 !py-2" disabled={disabled} onClick={() => onPick("failure")}>🚨 CAUGHT<span className="text-sm font-bold">{preview("failure")}</span></button>
     </div>
   );
 }
 
 /** The team goes into the Principal's Office together: record it for the CLASS. Each attempt spends notes. */
-export function PrincipalDesk({ tiers, classes, history, mods, room }: Props) {
+export function PrincipalDesk({ classes, history, mods, room }: Props) {
   const { act, pending } = useAct();
-  const enabled = tiers.filter((t) => t.enabled);
   const [classId, setClassId] = useState<number | null>(null);
-  const [tierId, setTierId] = useState<number | null>(null); // what the team chose to risk: the exec picks it deliberately
   const [force, setForce] = useState(false);
   const klass = classes.find((c) => c.id === classId) ?? null;
-  const tier = tiers.find((t) => t.id === tierId);
 
   return (
     <div className="space-y-5">
@@ -68,11 +65,7 @@ export function PrincipalDesk({ tiers, classes, history, mods, room }: Props) {
             {klass.why && (
               <label className="flex items-start gap-2 rounded-xl border-2 border-dashed border-pen bg-pen/5 p-2.5 text-sm font-bold text-pen"><input type="checkbox" className="mt-1 h-4 w-4" checked={force} onChange={(e) => setForce(e.target.checked)} /><span>{klass.why} <span className="block font-semibold text-ink-soft">Tick to record it anyway (logged in the activity trail). It will use up only the {klass.available} note{klass.available === 1 ? "" : "s"} they have, so they never go negative.</span></span></label>
             )}
-            <div className="label">What did the team choose to risk?</div>
-            <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Risk level">
-              {enabled.map((t) => <button key={t.id} role="radio" aria-checked={tierId === t.id} onClick={() => setTierId(t.id)} className={cn("rounded-full border-2 border-ink px-3 py-1 text-sm font-extrabold", tierId === t.id ? "bg-ink text-white" : "bg-white")}>{t.icon} {t.name}</button>)}
-            </div>
-            <OutcomeButtons tier={tier} disabled={pending || tierId === null || (Boolean(klass.why) && !force)} onPick={(outcome) => act(() => recordAttempt({ classId: klass.id, outcome, tierId: tierId ?? undefined, force }), { onOk: () => { setClassId(null); setTierId(null); setForce(false); } })} />
+            <OutcomeButtons disabled={pending || (Boolean(klass.why) && !force)} onPick={(outcome) => act(() => recordAttempt({ classId: klass.id, outcome, force }), { onOk: () => { setClassId(null); setForce(false); } })} />
             <p className="text-xs text-ink-soft">The result applies to the whole class. Recording it spends {Math.min(klass.required, klass.available)} Teacher’s Note{Math.min(klass.required, klass.available) === 1 ? "" : "s"}.</p>
           </div>
         )}

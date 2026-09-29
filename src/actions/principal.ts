@@ -4,7 +4,7 @@ import { z } from "zod";
 import { audit, parse, run, UserError, type ActionResult } from "@/lib/actions";
 import { applyOutcome, reverseAttemptEffects } from "@/lib/attempts";
 import { loadWorld } from "@/lib/data/load-world";
-import { notesToSpend, principalAccess } from "@/lib/domain/principal";
+import { notesToSpend, principalAccess, RECKLESS } from "@/lib/domain/principal";
 import { formatDelta } from "@/lib/domain/grades";
 
 const id = z.number().int().positive();
@@ -12,15 +12,15 @@ const id = z.number().int().positive();
 /**
  * Record what happened in the Principal's Office. The attempt is made by a whole CLASS
  * (the team goes in together), it spends the required Teacher's Notes, and a caught result
- * on a detention tier sends the whole class. It spends the required notes (or only what the class has if overridden). Also used to correct a result already recorded
- * (success ↔ caught): pass its `attemptId`.
+ * sends the whole class to detention. It spends the required notes (or only what the class has if
+ * overridden). Also used to correct a result already recorded (success ↔ caught): pass its `attemptId`.
  */
 export async function recordAttempt(input: {
-  classId: number; outcome: "success" | "failure"; tierId?: number; notes?: string; attemptId?: number; force?: boolean;
+  classId: number; outcome: "success" | "failure"; notes?: string; attemptId?: number; force?: boolean;
 }): Promise<ActionResult> {
   return run("principal", async (ctx) => {
     const v = parse(
-      z.object({ classId: id, outcome: z.enum(["success", "failure"]), tierId: id.optional(), notes: z.string().trim().max(300).optional(), attemptId: id.optional(), force: z.boolean().optional() }),
+      z.object({ classId: id, outcome: z.enum(["success", "failure"]), notes: z.string().trim().max(300).optional(), attemptId: id.optional(), force: z.boolean().optional() }),
       input,
     );
     const [klass] = await ctx.sql<{ name: string }>`select name from classes where id = ${v.classId}`;
@@ -29,7 +29,6 @@ export async function recordAttempt(input: {
     let attemptId = v.attemptId;
     if (!attemptId) {
       // New attempt. Warn (don't block) if the class hasn't earned enough notes.
-      if (!v.tierId) throw new UserError("Choose a risk level first.");
       const w = await loadWorld(ctx.sql);
       const access = principalAccess(w, { id: v.classId });
       if (!access.eligible && !v.force) {
@@ -38,16 +37,14 @@ export async function recordAttempt(input: {
           : `Class ${klass.name} has ${access.available} note${access.available === 1 ? "" : "s"} available and needs ${access.required} per attempt.`;
         throw new UserError(`${why} Tick "Allow anyway" to record it regardless.`);
       }
-      const [tier] = await ctx.sql<{ id: number }>`select id from risk_tiers where id = ${v.tierId}`;
-      if (!tier) throw new UserError("That risk level no longer exists.");
       const [a] = await ctx.sql<{ id: number }>`
-        insert into principal_attempts (class_id, status, risk_tier_id, tier_name, tier_icon, success_delta, failure_delta, failure_detention, notes_spent)
-        select ${v.classId}::int, 'requested', t.id, t.name, t.icon, t.success_delta, t.failure_delta, t.failure_detention, ${notesToSpend(access)}::int
-        from risk_tiers t where t.id = ${v.tierId} returning id`;
+        insert into principal_attempts (class_id, status, tier_name, tier_icon, success_delta, failure_delta, failure_detention, notes_spent)
+        values (${v.classId}, 'requested', ${RECKLESS.name}, ${RECKLESS.icon}, ${RECKLESS.successDelta}, ${RECKLESS.failureDelta}, ${RECKLESS.failureDetention}, ${notesToSpend(access)})
+        returning id`;
       attemptId = a.id;
     }
 
-    const { attempt, delta, detained } = await applyOutcome(ctx.sql, { attemptId, outcome: v.outcome, tierId: v.tierId, notes: v.notes, actorId: ctx.actor.id });
+    const { attempt, delta, detained } = await applyOutcome(ctx.sql, { attemptId, outcome: v.outcome, notes: v.notes, actorId: ctx.actor.id });
     if (attempt.classId !== v.classId) throw new UserError("That attempt belongs to a different class.");
     const summary = `Class ${klass.name} ${v.outcome === "success" ? "broke in" : "was caught"} (${attempt.tierName}, ${delta ? formatDelta(delta) : "no grade change"}${detained ? ", whole class to detention" : ""})`;
     await audit(ctx, "attempt.resolve", summary, { entity: "class", entityId: v.classId, data: { attemptId: attempt.id, outcome: v.outcome, delta } });

@@ -1,5 +1,5 @@
 import { PageHeader } from "@/components/admin/ui";
-import { BoundariesEditor, EventSettingsForm, TiersEditor } from "@/components/admin/settings-forms";
+import { BoundariesEditor, EventSettingsForm } from "@/components/admin/settings-forms";
 import { requireAdminPage } from "@/lib/auth/admin";
 import { getWorld } from "@/lib/data/world";
 
@@ -18,7 +18,6 @@ export default async function SettingsPage() {
         </div>
         <div className="space-y-4">
           <BoundariesEditor rows={w.boundaries.map((b) => ({ grade: b.grade, minPercent: b.minPercent }))} />
-          <TiersEditor tiers={w.tiers.map((t) => ({ id: t.id, name: t.name, description: t.description, icon: t.icon, successDelta: t.successDelta, failureDelta: t.failureDelta, failureDetention: t.failureDetention, enabled: t.enabled }))} />
         </div>
       </div>
     </>

@@ -146,8 +146,8 @@ Design decisions worth knowing:
 
 `events` (single row: identity, phase, every configurable rule) · `admins` · `classes` · `students` ·
 `subjects` (+ `is_maths_challenge`, `is_buzzer_challenge`) · `periods` · `rotations` (period × class → subject + room) ·
-`class_subject_scores` · `grade_boundaries` · `clubs` · `club_completions` · `teacher_notes` · `risk_tiers` ·
-`principal_attempts` (with tier snapshots) · `grade_modifications` · `detentions` · `photos` · `audit_log` ·
+`class_subject_scores` · `grade_boundaries` · `clubs` · `club_completions` · `teacher_notes` ·
+`principal_attempts` (success/caught, fixed numbers, snapshotted per attempt) · `grade_modifications` · `detentions` · `photos` · `audit_log` ·
 `live_state` · `math_challenges` (one row per student per period: streak, current question, status) ·
 `buzzer_state` (single row: the live round) · `buzzer_rounds` (the scoreboard: one row per resolved
 question, with a snapshot of the question text) · `buzzer_questions` (the prepared multiple-choice bank).
@@ -166,7 +166,7 @@ shows while it's your class's own Social Studies period)
 
 **Staff** `/admin` (event control) · `/checkin` · `/scoring` · `/notes` · `/principal` · `/detention` ·
 `/leaderboard` · `/stats` · `/math` (Maths toss queue) · `/buzzer` (run the trivia round) · `/students` (+ `/[id]`, `/import`, `/cards` printable login cards) · `/classes` (+ `/[id]`) ·
-`/timetable` (times, matrix, subjects) · `/clubs` · `/buzzer/questions` (the trivia question bank) · `/settings` (rules, grade boundaries, risk tiers, reset) · `/staff` · `/activity`
+`/timetable` (times, matrix, subjects) · `/clubs` · `/buzzer/questions` (the trivia question bank) · `/settings` (rules, grade boundaries, reset) · `/staff` · `/activity`
 
 ---
 
@@ -240,7 +240,7 @@ Notes: every screen is server-rendered on demand (nothing touches the database a
 
 **Before the event (week of)**
 1. *Settings*: check event details, rooms, Teacher's Notes each attempt costs, detention room.
-   Tune **grade boundaries** and **risk tiers** (success/failure %, detention on failure): all editable.
+   Tune **grade boundaries**: all editable.
 2. *Students → Import list*, then eyeball class sizes (or "Auto-balance"). *Print login cards* (QR + code).
 3. *Timetable & subjects*: set rotation times, then set each class's subject per period by hand; collisions
    light up red. Edit subjects (name, tagline, activity text, max mark, room — each subject always meets in
@@ -263,9 +263,9 @@ Room changed at the last minute? *Timetable* → edit the room; phones update au
 class earns the note. Duplicates are refused; anything can be undone. Students see their class's balance as
 *available / needed* (e.g. **1 / 3**), which drops when the team goes into the Principal's Office.
 *Principal's Office*: there is no student-facing screen; you run it in the room. Tap the **class** that went in
-(each tile shows its notes left and whether it can go in), pick the risk level *they chose*, run the challenge,
-tap **SUCCESS** or **CAUGHT**. The attempt spends the notes, the class grade updates instantly, and a caught result
-on a detention tier sends the whole class to detention. Entered wrong? **Change to caught/success** or **Void**:
+(each tile shows its notes left and whether it can go in), run the challenge, tap **SUCCESS** or **CAUGHT**. The
+attempt spends the notes, the class grade updates instantly (+10% success, −5% caught), and a caught result sends
+the whole class to detention. Entered wrong? **Change to caught/success** or **Void**:
 the grade change and detentions are reversed and the notes refunded. *Detention*: a team detention is one group with
 **SERVE ALL** (or release students one by one); **Cancel** / **Re-open** fix mistakes. Anyone can also be sent to
 detention individually.
@@ -296,7 +296,7 @@ Staff sign in with a **username** (1–40 characters, no spaces; not case-sensit
 ### Resetting
 | Goal | How |
 |---|---|
-| Start the event fresh (after a rehearsal, or to redo the night) | *Event control → Start the event fresh* (admins only; type `RESET`). Clears scores, notes, club completions, attempts, grade changes, detentions and check-ins, and returns to School Day before the first bell. **Keeps** classes and names, students and login cards, ID/team photos, clubs, subjects, timetable, rules, grade boundaries, risk tiers, staff accounts and the activity log |
+| Start the event fresh (after a rehearsal, or to redo the night) | *Event control → Start the event fresh* (admins only; type `RESET`). Clears scores, notes, club completions, attempts, grade changes, detentions and check-ins, and returns to School Day before the first bell. **Keeps** classes and names, students and login cards, ID/team photos, clubs, subjects, timetable, rules, grade boundaries, staff accounts and the activity log |
 | New Maths/Buzzer session mid-event (without a full reset) | **Reset session** on *Maths tosses* or *Buzzer* in the staff room. Also happens automatically whenever the rotation bell rings and the period changes — questions and the prepared bank are never touched |
 | Fresh demo data (local) | `npm run db:reset` (or delete `.data/` and restart `npm run dev`) |
 | Clean roster for real, no students | `DATABASE_URL=… npm run db:seed -- --profile=blank --yes` |
@@ -330,7 +330,7 @@ Supabase **Realtime** push (polling covers it either way), the **Scan my QR card
 * **Crest**: `src/components/ui/crest.tsx` draws the shield and book around the KAC dragon in `public/kac-dragon.png` (transparent PNG, ~256px). Swap that file to change the mascot; the shield/book/size live in the component. It's used on every ID card, header, login card and keepsake.
 * **Colours / fonts**: tokens at the top of `src/app/globals.css`; fonts in `src/app/layout.tsx`.
 * **New final stat**: add one line to `computeFinalStats` in `src/lib/domain/stats.ts`.
-* **Risk-tier variations later**: add columns to `risk_tiers` / the tier form; attempts snapshot the numbers used.
+* **Principal's Office numbers**: the `RECKLESS` constant in `src/lib/domain/principal.ts`; attempts snapshot the numbers used.
 
 ## Troubleshooting
 

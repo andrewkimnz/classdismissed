@@ -9,5 +9,6 @@ export const MIGRATION_FILES = [
   "0007_buzzer.sql",
   "0008_buzzer_questions.sql",
   "0009_drop_club_instructions.sql",
-  "0010_drop_custom_award.sql"
+  "0010_drop_custom_award.sql",
+  "0011_drop_risk_tiers.sql"
 ] as const;

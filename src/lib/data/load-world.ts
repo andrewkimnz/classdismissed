@@ -1,7 +1,7 @@
 import type { Sql } from "@/lib/db/sql";
 import type {
   AttemptRow, BoundaryRow, ClassRow, ClubRow, CompletionRow, DetentionRow, EventRow, ModificationRow,
-  NoteRow, PeriodRow, RiskTierRow, RotationRow, ScoreRow, StudentRow, SubjectRow, World,
+  NoteRow, PeriodRow, RotationRow, ScoreRow, StudentRow, SubjectRow, World,
 } from "@/lib/types";
 
 /**
@@ -13,7 +13,7 @@ import type {
 export async function loadWorld(sql: Sql): Promise<World> {
   const [
     events, classes, students, subjects, periods, rotations, scores, boundaries,
-    clubs, completions, notes, attempts, mods, detentions, tiers,
+    clubs, completions, notes, attempts, mods, detentions,
   ] = await Promise.all([
     sql<EventRow>`select *, event_date::text as event_date from events where id = 1`,
     sql<ClassRow>`
@@ -35,11 +35,10 @@ export async function loadWorld(sql: Sql): Promise<World> {
     sql<AttemptRow>`select * from principal_attempts order by id`,
     sql<ModificationRow>`select * from grade_modifications where revoked_at is null order by id`,
     sql<DetentionRow>`select * from detentions order by id`,
-    sql<RiskTierRow>`select * from risk_tiers order by sort_order, id`,
   ]);
   if (!events[0]) throw new Error("Database has no event row. Run `npm run db:migrate`.");
   return {
     event: events[0], classes, students, subjects, periods, rotations, scores, boundaries,
-    clubs, completions, notes, attempts, mods, detentions, tiers,
+    clubs, completions, notes, attempts, mods, detentions,
   };
 }

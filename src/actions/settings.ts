@@ -22,50 +22,6 @@ export async function saveBoundaries(input: { rows: { grade: string; minPercent:
   });
 }
 
-const tierSchema = z.object({
-  name: z.string().trim().min(1, "Name is required").max(30),
-  description: z.string().trim().max(200),
-  icon: z.string().trim().min(1).max(8),
-  successDelta: z.number().min(-100).max(100),
-  failureDelta: z.number().min(-100).max(100),
-  failureDetention: z.boolean(),
-  enabled: z.boolean(),
-});
-type TierInput = z.input<typeof tierSchema>;
-
-export async function createTier(input: TierInput): Promise<ActionResult> {
-  return run("manage", async (ctx) => {
-    const v = parse(tierSchema, input);
-    await ctx.sql`insert into risk_tiers (name, description, icon, success_delta, failure_delta, failure_detention, enabled, sort_order)
-      values (${v.name}, ${v.description}, ${v.icon}, ${v.successDelta}, ${v.failureDelta}, ${v.failureDetention}, ${v.enabled}, (select coalesce(max(sort_order), 0) + 1 from risk_tiers))`;
-    await audit(ctx, "tier.create", `Risk tier ${v.name} created`, { data: v });
-    return { message: `${v.name} added.` };
-  });
-}
-
-/** Editing a tier never rewrites past attempts: they keep the numbers they were made with. */
-export async function updateTier(input: TierInput & { id: number }): Promise<ActionResult> {
-  return run("manage", async (ctx) => {
-    const v = parse(tierSchema.extend({ id }), input);
-    const rows = await ctx.sql`update risk_tiers set name = ${v.name}, description = ${v.description}, icon = ${v.icon},
-      success_delta = ${v.successDelta}, failure_delta = ${v.failureDelta}, failure_detention = ${v.failureDetention}, enabled = ${v.enabled}
-      where id = ${v.id} returning id`;
-    if (!rows.length) throw new UserError("That tier no longer exists.");
-    await audit(ctx, "tier.update", `Risk tier ${v.name} updated`, { entity: "tier", entityId: v.id, data: v });
-    return { message: `${v.name} saved.` };
-  });
-}
-
-export async function deleteTier(input: { id: number }): Promise<ActionResult> {
-  return run("manage", async (ctx) => {
-    const v = parse(z.object({ id }), input);
-    const rows = await ctx.sql<{ name: string }>`delete from risk_tiers where id = ${v.id} returning name`;
-    if (!rows.length) throw new UserError("Already deleted.");
-    await audit(ctx, "tier.delete", `Risk tier ${rows[0].name} deleted`, { entity: "tier", entityId: v.id });
-    return { message: `${rows[0].name} deleted. Past attempts keep their recorded numbers.` };
-  });
-}
-
 // ── staff accounts ─────────────────────────────────────────────────────────
 export async function createAdmin(input: { username: string; name: string; role: "admin" | "teacher"; password: string }): Promise<ActionResult> {
   return run("manage", async (ctx) => {

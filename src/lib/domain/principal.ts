@@ -1,5 +1,8 @@
 import type { AttemptRow, ClassRow, NoteRow, World } from "@/lib/types";
 
+/** Principal's Office is just this now — no more picking a risk level. */
+export const RECKLESS = { name: "RECKLESS", icon: "💀", successDelta: 10, failureDelta: -5, failureDetention: true } as const;
+
 /** Teacher's Notes a class has earned (active ones only). */
 export const classNotes = (w: World, classId: number): NoteRow[] => w.notes.filter((n) => n.classId === classId);
 

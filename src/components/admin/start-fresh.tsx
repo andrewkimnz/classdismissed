@@ -26,7 +26,7 @@ export function StartFreshPanel({ counts }: { counts: ResetCounts }) {
       </div>
       <div className="mb-3 rounded-xl border-2 border-dashed border-line bg-white p-3 text-sm">
         <div className="label mb-1 text-emerald-700">Stays exactly as it is</div>
-        Classes and their names/colours · students, numbers and login cards · ID and team photos · clubs · subjects and timetable · rules, grade boundaries and risk tiers · staff accounts · the activity log.
+        Classes and their names/colours · students, numbers and login cards · ID and team photos · clubs · subjects and timetable · rules and grade boundaries · staff accounts · the activity log.
       </div>
       <div className="flex gap-2">
         <input className="field flex-1" placeholder="Type RESET to unlock" value={text} onChange={(e) => setText(e.target.value)} aria-label="Type RESET to confirm" autoComplete="off" />

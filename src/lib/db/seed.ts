@@ -1,5 +1,6 @@
 import { generateLoginCode } from "@/lib/auth/codes";
 import { hashPassword } from "@/lib/auth/password";
+import { RECKLESS } from "@/lib/domain/principal";
 import { generateTimetable } from "@/lib/domain/timetable";
 import { zonedToUtc } from "@/lib/domain/time";
 import type { ClassRow, PeriodRow, SubjectRow } from "@/lib/types";
@@ -113,12 +114,6 @@ const CLUBS = [
     description: "Step into character and work with your group to recreate a movie scene." },
 ];
 
-const TIERS = [
-  { name: "SAFE", icon: "🍀", description: "A cautious peek at the laptop.", s: 2, f: 0, d: false },
-  { name: "RISKY", icon: "🔥", description: "You know where the Principal keeps the password.", s: 5, f: -2, d: false },
-  { name: "RECKLESS", icon: "💀", description: "All-in. If you're caught, you're in detention.", s: 10, f: -5, d: true },
-];
-
 const BOUNDARIES: [string, number][] = [
   ["A+", 90], ["A", 85], ["A-", 80], ["B+", 75], ["B", 70], ["B-", 65],
   ["C+", 60], ["C", 55], ["C-", 50], ["D", 40], ["F", 0],
@@ -137,7 +132,7 @@ export async function seed(conn: Db, opts: { profile: SeedProfile; demoAdmin?: b
 
   await conn.tx(async (sql) => {
     // ── wipe (accounts survive) ──────────────────────────────────────────
-    await sql`truncate table audit_log, photos, detentions, grade_modifications, principal_attempts, risk_tiers,
+    await sql`truncate table audit_log, photos, detentions, grade_modifications, principal_attempts,
       teacher_notes, club_completions, clubs, grade_boundaries, class_subject_scores, rotations, periods,
       subjects, students, classes restart identity cascade`;
     await sql`delete from events`;
@@ -187,14 +182,6 @@ export async function seed(conn: Db, opts: { profile: SeedProfile; demoAdmin?: b
         returning id`;
       clubIds.push(row.id);
     }
-    const tierIds: number[] = [];
-    for (const [i, t] of TIERS.entries()) {
-      const [row] = await sql<{ id: number }>`
-        insert into risk_tiers (name, icon, description, success_delta, failure_delta, failure_detention, sort_order)
-        values (${t.name}, ${t.icon}, ${t.description}, ${t.s}, ${t.f}, ${t.d}, ${i}) returning id`;
-      tierIds.push(row.id);
-    }
-
     if (profile === "blank") return;
 
     // ── roster ───────────────────────────────────────────────────────────
@@ -266,41 +253,36 @@ export async function seed(conn: Db, opts: { profile: SeedProfile; demoAdmin?: b
     }
     await sql`insert into teacher_notes (class_id, reason) values (${classNo("2-B")}, 'Helped set up the yearbook wall')`;
 
-    const tier = (name: string) => {
-      const i = TIERS.findIndex((t) => t.name === name);
-      return { id: tierIds[i], ...TIERS[i] };
-    };
-
-    /** One Principal's Office attempt by a whole class. A caught result on a detention tier sends everyone who is here. */
-    async function attempt(cls: string, tierName: string, outcome: "success" | "failure", notes = "") {
-      const t = tier(tierName);
+    /** One Principal's Office attempt by a whole class. A caught result sends everyone who is here. */
+    async function attempt(cls: string, outcome: "success" | "failure", notes = "") {
       const cid = classNo(cls);
-      const delta = outcome === "success" ? t.s : t.f;
+      const delta = outcome === "success" ? RECKLESS.successDelta : RECKLESS.failureDelta;
       const [a] = await sql<{ id: number }>`
-        insert into principal_attempts (class_id, status, risk_tier_id, tier_name, tier_icon,
+        insert into principal_attempts (class_id, status, tier_name, tier_icon,
           success_delta, failure_delta, failure_detention, notes_spent, outcome, delta_applied, notes, resolved_at)
-        values (${cid}, 'resolved', ${t.id}, ${t.name}, ${t.icon},
-          ${t.s}, ${t.f}, ${t.d}, 3, ${outcome}, ${delta}, ${notes}, now())
+        values (${cid}, 'resolved', ${RECKLESS.name}, ${RECKLESS.icon},
+          ${RECKLESS.successDelta}, ${RECKLESS.failureDelta}, ${RECKLESS.failureDetention}, 3, ${outcome}, ${delta}, ${notes}, now())
         returning id`;
       if (delta) {
         await sql`insert into grade_modifications (class_id, attempt_id, kind, delta_percent, reason)
-          values (${cid}, ${a.id}, 'principal_attempt', ${delta}, ${`${t.name} attempt: ${outcome}`})`;
+          values (${cid}, ${a.id}, 'principal_attempt', ${delta}, ${`${RECKLESS.name} attempt: ${outcome}`})`;
       }
-      if (outcome === "failure" && t.d) {
+      if (outcome === "failure" && RECKLESS.failureDetention) {
         await sql`insert into detentions (student_id, attempt_id, reason, room)
           select id, ${a.id}::int, 'Caught attempting to alter school records', '201-320' from students where class_id = ${cid} and attendance <> 'absent'`;
       }
       return a.id;
     }
 
-    // 2-B is the demo class: 7 notes collected, 2 attempts (6 spent) → only 1 left.
-    await attempt("2-B", "RISKY", "success", "Smooth. Nobody saw a thing.");
-    await attempt("2-B", "SAFE", "failure", "Tripped over the wastepaper bin.");
-    await attempt("1-C", "RECKLESS", "success", "Legendary.");
-    await attempt("2-C", "SAFE", "success");
-    await attempt("1-B", "RISKY", "failure");
-    const oneB = await attempt("1-B", "RECKLESS", "failure", "Knocked over the Principal's plant.");
-    await attempt("1-D", "RECKLESS", "failure", "Sneezed in the vent."); // 1-D is in detention right now
+    // 2-B is the demo class: 7 notes collected, 2 attempts (6 spent) → only 1 left. Every caught result
+    // sends the whole class to detention now, so only 1-B and 1-D's attempts here are ones that got caught.
+    await attempt("2-B", "success", "Smooth. Nobody saw a thing.");
+    await attempt("2-B", "success", "Tripped over the wastepaper bin, but nobody heard.");
+    await attempt("1-C", "success", "Legendary.");
+    await attempt("2-C", "success");
+    await attempt("1-B", "success");
+    const oneB = await attempt("1-B", "failure", "Knocked over the Principal's plant.");
+    await attempt("1-D", "failure", "Sneezed in the vent."); // 1-D is in detention right now
 
     // 1-B has already served their team detention; 1-D's is still pending.
     await sql`update detentions set status = 'served', released_at = now() where attempt_id = ${oneB}`;

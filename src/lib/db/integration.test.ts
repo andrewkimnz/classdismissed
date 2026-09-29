@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { loadWorld } from "@/lib/data/load-world";
 import { computeStandings } from "@/lib/domain/grades";
-import { noteBalance, notesToSpend, principalAccess } from "@/lib/domain/principal";
+import { noteBalance, notesToSpend, principalAccess, RECKLESS } from "@/lib/domain/principal";
 import { computeFinalStats, computeStudentStats } from "@/lib/domain/stats";
 import { timetableIssues } from "@/lib/domain/timetable";
 import type { World } from "@/lib/types";
@@ -43,8 +43,8 @@ describe("schema + demo seed (in-memory Postgres)", () => {
     assert.equal(r.raw, 63);
     assert.equal(r.originalPct, 78.75);
     assert.equal(r.originalGrade, "B+");
-    assert.equal(r.currentPct, 83.75); // +5% from the RISKY break-in
-    assert.equal(r.currentGrade, "A-");
+    assert.equal(r.currentPct, 98.75); // +10% + 10% from 2-B's two successful break-ins
+    assert.equal(r.currentGrade, "A+");
   });
 
   it("generates a collision-free timetable", () => assert.deepEqual(timetableIssues(w), []));
@@ -72,9 +72,9 @@ describe("schema + demo seed (in-memory Postgres)", () => {
     assert.ok(dets("1-B").every((d) => d.status === "served"));
   });
 
-  it("computes the keepsake numbers for Andrew's team: 7 notes, 2 attempts, 1 break-in; his own 1 detention", () => {
+  it("computes the keepsake numbers for Andrew's team: 7 notes, 2 attempts, 2 break-ins; his own 1 detention", () => {
     const s = computeStudentStats(w).get(w.students.find((x) => x.name === "Andrew Kim")!.id)!;
-    assert.deepEqual([s.notes, s.attempts, s.successes, s.detentions], [7, 2, 1, 1]);
+    assert.deepEqual([s.notes, s.attempts, s.successes, s.detentions], [7, 2, 2, 1]);
   });
 
   it("builds the final stat boards", () => {
@@ -98,12 +98,10 @@ describe("schema + demo seed (in-memory Postgres)", () => {
     assert.equal(r.v, 2);
   });
 
-  it("a team attempt: spends notes, changes the class grade, detains the whole class on a caught detention tier, and every step is reversible", async () => {
+  it("a team attempt: spends notes, changes the class grade, detains the whole class when caught, and every step is reversible", async () => {
     const { applyOutcome, reverseAttemptEffects } = await import("@/lib/attempts");
     const team = cls("1-A");
     const members = w.students.filter((s) => s.classId === team.id && s.attendance !== "absent").length;
-    const tiers = await conn.sql<{ id: number; name: string }>`select id, name from risk_tiers`;
-    const tier = (n: string) => tiers.find((t) => t.name === n)!.id;
     const fresh = () => loadWorld(conn.sql);
     const pct = async () => computeStandings(await fresh()).find((r) => r.klass.id === team.id)!.currentPct!;
     const avail = async () => noteBalance(await fresh(), team.id).available;
@@ -114,25 +112,25 @@ describe("schema + demo seed (in-memory Postgres)", () => {
 
     // The exec creates the team's attempt in the room.
     const [open] = await conn.sql<{ id: number }>`
-      insert into principal_attempts (class_id, status, risk_tier_id, tier_name, tier_icon, success_delta, failure_delta, failure_detention, notes_spent)
-      select ${team.id}::int, 'requested', t.id, t.name, t.icon, t.success_delta, t.failure_delta, t.failure_detention, ${notesToSpend(noteBalance(await fresh(), team.id))}::int
-      from risk_tiers t where t.name = 'RISKY' returning id`;
+      insert into principal_attempts (class_id, status, tier_name, tier_icon, success_delta, failure_delta, failure_detention, notes_spent)
+      values (${team.id}, 'requested', ${RECKLESS.name}, ${RECKLESS.icon}, ${RECKLESS.successDelta}, ${RECKLESS.failureDelta}, ${RECKLESS.failureDetention}, ${notesToSpend(noteBalance(await fresh(), team.id))})
+      returning id`;
 
-    await conn.tx((sql) => applyOutcome(sql, { attemptId: open.id, outcome: "success", tierId: tier("RISKY"), actorId: 1 }));
-    assert.equal(await pct(), base + 5, "RISKY success = +5");
+    await conn.tx((sql) => applyOutcome(sql, { attemptId: open.id, outcome: "success", actorId: 1 }));
+    assert.equal(await pct(), base + 10, "success = +10");
     assert.equal(await avail(), notesBefore - 3, "the attempt SPENDS 3 notes (this is what used to stay at 4/3)");
 
-    // Entered wrong: it was a failure on RECKLESS. One correction fixes everything, and the notes stay spent once.
-    await conn.tx((sql) => applyOutcome(sql, { attemptId: open.id, outcome: "failure", tierId: tier("RECKLESS"), actorId: 1 }));
-    assert.equal(await pct(), base - 5, "old +5 reversed, RECKLESS failure = -5");
+    // Entered wrong: it was actually a caught result. One correction fixes everything, and the notes stay spent once.
+    await conn.tx((sql) => applyOutcome(sql, { attemptId: open.id, outcome: "failure", actorId: 1 }));
+    assert.equal(await pct(), base - 5, "old +10 reversed, failure = -5");
     assert.equal(await avail(), notesBefore - 3, "correcting must not spend notes twice");
     const pending = await detained(open.id);
     assert.equal(pending.length, members, "the WHOLE class goes to detention");
     assert.ok(pending.every((x) => x === "pending"));
 
     // Flip back to success: grade change and every detention are undone.
-    await conn.tx((sql) => applyOutcome(sql, { attemptId: open.id, outcome: "success", tierId: tier("SAFE"), actorId: 1 }));
-    assert.equal(await pct(), base + 2);
+    await conn.tx((sql) => applyOutcome(sql, { attemptId: open.id, outcome: "success", actorId: 1 }));
+    assert.equal(await pct(), base + 10);
     assert.ok((await detained(open.id)).every((x) => x === "cancelled"));
 
     // Void: the class grade AND the notes come back.
@@ -150,7 +148,7 @@ describe("schema + demo seed (in-memory Postgres)", () => {
     assert.deepEqual([before.earned, before.available, before.required], [2, 2, 3]);
     assert.equal(notesToSpend(before), 2, "an override spends what they have, not the full 3");
 
-    const [att] = await conn.sql<{ id: number }>`insert into principal_attempts (class_id, status, tier_name, notes_spent) values (${team.id}, 'resolved', 'SAFE', ${notesToSpend(before)}) returning id`;
+    const [att] = await conn.sql<{ id: number }>`insert into principal_attempts (class_id, status, tier_name, notes_spent) values (${team.id}, 'resolved', 'RECKLESS', ${notesToSpend(before)}) returning id`;
     const after = noteBalance(await loadWorld(conn.sql), team.id);
     assert.deepEqual([after.spent, after.available], [2, 0]);
 
@@ -250,7 +248,7 @@ describe("start the event fresh", () => {
       select (select count(*)::int from classes) as classes, (select count(*)::int from students) as students,
              (select count(*)::int from clubs) as clubs, (select count(*)::int from subjects) as subjects,
              (select count(*)::int from periods) as periods, (select count(*)::int from rotations) as rotations,
-             (select count(*)::int from risk_tiers) as tiers, (select count(*)::int from grade_boundaries) as boundaries,
+             (select count(*)::int from grade_boundaries) as boundaries,
              (select count(*)::int from photos where is_current) as photos, (select count(*)::int from admins) as admins,
              (select count(distinct login_code)::int from students) as codes`)[0];
     const kept = await setup();

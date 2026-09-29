@@ -135,7 +135,7 @@ describe("timetableIssues: a shared room is only a clash between different subje
     };
     return {
       event, classes: [a, b], students: [], subjects, periods: [period], rotations,
-      scores: [], boundaries: [], clubs: [], completions: [], notes: [], attempts: [], mods: [], detentions: [], tiers: [],
+      scores: [], boundaries: [], clubs: [], completions: [], notes: [], attempts: [], mods: [], detentions: [],
     };
   }
 

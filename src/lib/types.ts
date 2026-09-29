@@ -163,18 +163,6 @@ export interface NoteRow {
   createdAt: Date;
 }
 
-export interface RiskTierRow {
-  id: number;
-  name: string;
-  description: string;
-  successDelta: number;
-  failureDelta: number;
-  failureDetention: boolean;
-  icon: string;
-  enabled: boolean;
-  sortOrder: number;
-}
-
 export type AttemptStatus = "requested" | "resolved" | "cancelled" | "voided";
 
 /** A Principal's Office attempt made by a class (team). */
@@ -182,7 +170,6 @@ export interface AttemptRow {
   id: number;
   classId: number;
   status: AttemptStatus;
-  riskTierId: number | null;
   tierName: string;
   tierIcon: string;
   successDelta: number;
@@ -250,5 +237,4 @@ export interface World {
   attempts: AttemptRow[]; // every status
   mods: ModificationRow[]; // active only
   detentions: DetentionRow[]; // every status
-  tiers: RiskTierRow[];
 }

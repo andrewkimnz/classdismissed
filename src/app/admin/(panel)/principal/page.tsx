@@ -29,7 +29,6 @@ export default async function PrincipalPage() {
     <>
       <PageHeader title="Principal’s Office" hint="the whole team goes in. record what they risked and how it went." />
       <PrincipalDesk
-        tiers={w.tiers.map((t) => ({ id: t.id, name: t.name, icon: t.icon, successDelta: t.successDelta, failureDelta: t.failureDelta, failureDetention: t.failureDetention, enabled: t.enabled }))}
         classes={classes}
         history={history}
         mods={mods.slice(0, 40).map((m) => ({ id: m.id, className: klass(m.classId)?.name ?? "?", delta: m.deltaPercent, reason: m.reason, at: m.createdAt.toISOString(), revoked: Boolean(m.revokedAt) }))}

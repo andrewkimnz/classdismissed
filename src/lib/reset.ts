@@ -10,8 +10,8 @@ import type { Sql } from "@/lib/db/sql";
  *
  * KEEPS everything set up before the event: classes and their names/colours, students
  * (numbers, class, login codes, ID and team photos), clubs, subjects, timetable and rooms,
- * rules (notes per attempt, rooms), grade boundaries, risk tiers, staff accounts, and the
- * activity log (which records the reset itself).
+ * rules (notes per attempt, rooms), grade boundaries, staff accounts, and the activity log
+ * (which records the reset itself).
  */
 export interface ResetCounts {
   scores: number;
