@@ -96,29 +96,21 @@ const SUBJECTS = [
 
 const CLUBS = [
   { name: "Photography Club", icon: "📸", color: "#F8B4C8", room: "201-315", awards: false, open: true,
-    description: "Graduation photos, Polaroids, team photos and photos with the execs. KAC photo frame and props provided.",
-    instructions: "Get a graduation photo taken with your class or an exec. Just for the memories: no Teacher's Note here." },
+    description: "Capture photos and memories with your team, execs, and other members with Polaroids, props, and photo frames." },
   { name: "Art Club", icon: "🎨", color: "#FFD54A", room: "201-316", awards: true, open: true,
-    description: "The yearbook wall! Write a message, draw something, and contribute to the KAC yearbook.",
-    instructions: "Leave a message or drawing on the yearbook wall, then show an exec to collect your Teacher's Note." },
+    description: "Make your mark on the KAC yearbook with your names, drawings and messages for the fellow members and execs in the KAC class of 2026" },
   { name: "PE Club", icon: "🏃", color: "#7BD3A0", room: "201-317", awards: true, open: true,
-    description: "Egg-and-spoon, an obstacle course and other physical challenges.",
-    instructions: "Complete the egg-and-spoon race without dropping your egg. Cracked egg = go again." },
+    description: "Take on a physical challenges that will put your coordination and teamwork to the test." },
   { name: "Language Club", icon: "🗣️", color: "#9CC8FF", room: "201-318", awards: true, open: true,
-    description: "How many ways can you say hello?",
-    instructions: "Write 'hi' in 20 different languages. Bring your list to an exec." },
+    description: "See how many greetings from around the world you can recognise and figure out." },
   { name: "Music Club", icon: "🎵", color: "#C9B3FF", room: "201-323", awards: true, open: true,
-    description: "Song jumble: the lyrics are scrambled. Can you unscramble them?",
-    instructions: "Unscramble the song titles. All correct = Teacher's Note." },
+    description: "Put your ears to the test and see how many songs you can identify from the music challenge." },
   { name: "Puzzle Club", icon: "🧩", color: "#FFB88C", room: "201-324", awards: true, open: true,
-    description: "Codes, ciphers and clues. Decode the message.",
-    instructions: "Decode the puzzle and tell an exec the hidden phrase." },
+    description: "Race your brain through a set of number and logic puzzles and see if you can solve them all." },
   { name: "Debate Club", icon: "🎤", color: "#FF9AA2", room: "201-325", awards: true, open: true,
-    description: "Short debates on important matters, like whether a hot dog is a sandwich.",
-    instructions: "Take part in one debate round (either side)." },
+    description: "Choose your topic, take a side, and battle it out in a quick group debate." },
   { name: "Drama Club", icon: "🎭", color: "#FFC6E0", room: "201-326", awards: true, open: false,
-    description: "Recreate famous scenes and play charades.",
-    instructions: "Act out your scene so your team can guess it." },
+    description: "Step into character and work with your group to recreate a movie scene." },
 ];
 
 const TIERS = [
@@ -190,8 +182,8 @@ export async function seed(conn: Db, opts: { profile: SeedProfile; demoAdmin?: b
     const clubIds: number[] = [];
     for (const [i, c] of CLUBS.entries()) {
       const [row] = await sql<{ id: number }>`
-        insert into clubs (name, icon, color, description, instructions, room, is_open, awards_note, sort_order)
-        values (${c.name}, ${c.icon}, ${c.color}, ${c.description}, ${c.instructions}, ${c.room}, ${c.open}, ${c.awards}, ${i})
+        insert into clubs (name, icon, color, description, room, is_open, awards_note, sort_order)
+        values (${c.name}, ${c.icon}, ${c.color}, ${c.description}, ${c.room}, ${c.open}, ${c.awards}, ${i})
         returning id`;
       clubIds.push(row.id);
     }

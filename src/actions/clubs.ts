@@ -10,7 +10,6 @@ const clubSchema = z.object({
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   imageUrl: z.string().trim().max(500),
   description: z.string().trim().max(600),
-  instructions: z.string().trim().max(800),
   room: z.string().trim().max(40),
   isOpen: z.boolean(),
   awardsNote: z.boolean(),
@@ -21,8 +20,8 @@ export async function createClub(input: ClubInput): Promise<ActionResult> {
   return run("manage", async (ctx) => {
     const v = parse(clubSchema, input);
     await ctx.sql`
-      insert into clubs (name, icon, color, image_url, description, instructions, room, is_open, awards_note, sort_order)
-      values (${v.name}, ${v.icon}, ${v.color}, ${v.imageUrl || null}, ${v.description}, ${v.instructions}, ${v.room}, ${v.isOpen}, ${v.awardsNote},
+      insert into clubs (name, icon, color, image_url, description, room, is_open, awards_note, sort_order)
+      values (${v.name}, ${v.icon}, ${v.color}, ${v.imageUrl || null}, ${v.description}, ${v.room}, ${v.isOpen}, ${v.awardsNote},
               (select coalesce(max(sort_order), 0) + 1 from clubs))`;
     await audit(ctx, "club.create", `Created club ${v.name}`);
     return { message: `${v.name} created.` };
@@ -34,7 +33,7 @@ export async function updateClub(input: ClubInput & { id: number }): Promise<Act
     const v = parse(clubSchema.extend({ id: z.number().int().positive() }), input);
     const rows = await ctx.sql`
       update clubs set name = ${v.name}, icon = ${v.icon}, color = ${v.color}, image_url = ${v.imageUrl || null}, description = ${v.description},
-        instructions = ${v.instructions}, room = ${v.room}, is_open = ${v.isOpen}, awards_note = ${v.awardsNote}
+        room = ${v.room}, is_open = ${v.isOpen}, awards_note = ${v.awardsNote}
       where id = ${v.id} returning id`;
     if (!rows.length) throw new UserError("That club no longer exists.");
     await audit(ctx, "club.update", `Updated club ${v.name}`, { entity: "club", entityId: v.id, data: v });

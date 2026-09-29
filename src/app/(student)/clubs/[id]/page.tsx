@@ -37,16 +37,9 @@ export default async function ClubPage({ params }: { params: Promise<{ id: strin
             <span className="display text-xl">Room {club.room || "TBC"}</span>
           </div>
           {club.description && <p className="text-[16px] leading-snug">{club.description}</p>}
+          {club.awardsNote && <p className="text-[13px] font-bold text-ink-soft">Finish, then show an exec and they&rsquo;ll stamp your Teacher&rsquo;s Note.</p>}
         </div>
       </div>
-      {club.instructions && (
-        <div className="relative rotate-[-1deg] rounded-md bg-[#fff6a8] p-4 pt-5 shadow-[0_4px_10px_rgba(30,42,74,0.2)]">
-          <span className="tape -top-2 left-6 rotate-[-4deg]" />
-          <div className="label mb-1 text-ink/70">How to complete it</div>
-          <p className="hand text-[26px] leading-[1.05]">{club.instructions}</p>
-          {club.awardsNote && <p className="mt-2 text-[13px] font-bold text-ink/70">Finish, then show an exec and they&rsquo;ll stamp your Teacher&rsquo;s Note.</p>}
-        </div>
-      )}
       {!club.isOpen && <p className="rounded-xl border-2 border-dashed border-line bg-white/70 p-3 text-center text-sm font-bold text-ink-soft">This club is closed right now. Try another one and come back!</p>}
     </div>
   );

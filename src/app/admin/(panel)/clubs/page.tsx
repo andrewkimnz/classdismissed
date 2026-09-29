@@ -14,7 +14,7 @@ export default async function ClubsPage() {
     <>
       <PageHeader title="After-school clubs" hint="add, edit, open, close: nothing is hard-coded" />
       <ClubsAdmin
-        clubs={w.clubs.map((c) => ({ id: c.id, name: c.name, icon: c.icon, color: c.color, imageUrl: c.imageUrl, description: c.description, instructions: c.instructions, room: c.room, isOpen: c.isOpen, awardsNote: c.awardsNote, completions: w.completions.filter((x) => x.clubId === c.id).length }))}
+        clubs={w.clubs.map((c) => ({ id: c.id, name: c.name, icon: c.icon, color: c.color, imageUrl: c.imageUrl, description: c.description, room: c.room, isOpen: c.isOpen, awardsNote: c.awardsNote, completions: w.completions.filter((x) => x.clubId === c.id).length }))}
         archived={archived.map((a) => ({ id: a.id, name: a.name, icon: a.icon }))}
         canManage={can(admin, "manage")}
       />

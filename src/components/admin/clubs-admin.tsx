@@ -6,7 +6,7 @@ import { ConfirmButton, Field, Modal, Panel, Switch, useAct, useToast } from "@/
 import { Chip } from "@/components/ui/kit";
 import { cn, readableOn } from "@/lib/cn";
 
-interface Club { id: number; name: string; icon: string; color: string; imageUrl: string | null; description: string; instructions: string; room: string; isOpen: boolean; awardsNote: boolean; completions: number }
+interface Club { id: number; name: string; icon: string; color: string; imageUrl: string | null; description: string; room: string; isOpen: boolean; awardsNote: boolean; completions: number }
 
 export function ClubsAdmin({ clubs, archived, canManage }: { clubs: Club[]; archived: { id: number; name: string; icon: string }[]; canManage: boolean }) {
   const [editing, setEditing] = useState<Club | "new" | null>(null);
@@ -43,7 +43,7 @@ function ClubModal({ club, onClose }: { club: Club | null; onClose: () => void }
   const { act, pending } = useAct();
   const toast = useToast();
   const file = useRef<HTMLInputElement>(null);
-  const [f, setF] = useState({ name: club?.name ?? "", icon: club?.icon ?? "🎒", color: club?.color ?? SWATCHES[0], imageUrl: club?.imageUrl ?? "", description: club?.description ?? "", instructions: club?.instructions ?? "", room: club?.room ?? "", isOpen: club?.isOpen ?? true, awardsNote: club?.awardsNote ?? true });
+  const [f, setF] = useState({ name: club?.name ?? "", icon: club?.icon ?? "🎒", color: club?.color ?? SWATCHES[0], imageUrl: club?.imageUrl ?? "", description: club?.description ?? "", room: club?.room ?? "", isOpen: club?.isOpen ?? true, awardsNote: club?.awardsNote ?? true });
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setF((s) => ({ ...s, [k]: e.target.value }));
   return (
     <Modal open onClose={onClose} title={club ? `Edit ${club.name}` : "Add a club"}>
@@ -51,8 +51,7 @@ function ClubModal({ club, onClose }: { club: Club | null; onClose: () => void }
         <div className="grid grid-cols-[80px_1fr] gap-3"><Field label="Icon"><input className="field text-center text-2xl" value={f.icon} onChange={set("icon")} maxLength={8} /></Field><Field label="Club name"><input className="field" value={f.name} onChange={set("name")} required maxLength={60} autoFocus /></Field></div>
         <Field label="Room"><input className="field font-mono" value={f.room} onChange={set("room")} placeholder="201-317" maxLength={40} /></Field>
         <Field label="Poster colour"><div className="flex flex-wrap gap-2">{SWATCHES.map((c) => <button key={c} type="button" aria-label={c} onClick={() => setF((s) => ({ ...s, color: c }))} className="h-9 w-9 rounded-full border-2 border-ink" style={{ background: c, outline: f.color === c ? "3px solid var(--ink)" : "none", outlineOffset: 2 }} />)}</div></Field>
-        <Field label="Description (what it is)"><textarea className="field" value={f.description} onChange={set("description")} maxLength={600} /></Field>
-        <Field label="Activity instructions (how to earn the note)"><textarea className="field" value={f.instructions} onChange={set("instructions")} maxLength={800} /></Field>
+        <Field label="Description"><textarea className="field" value={f.description} onChange={set("description")} maxLength={600} /></Field>
         <Field label="Poster image (optional)" hint="Replaces the emoji on the club card.">
           <div className="flex gap-2"><input className="field flex-1" value={f.imageUrl} onChange={set("imageUrl")} placeholder="https://… or upload →" />{club && (<><button type="button" className="btn btn-sm self-center" onClick={() => file.current?.click()}>Upload</button><input ref={file} type="file" accept="image/*" hidden onChange={async (e) => { const fl = e.target.files?.[0]; if (!fl) return; const fd = new FormData(); fd.set("id", String(club.id)); fd.set("file", fl); const r = await uploadClubImage(fd); toast(r.ok, r.ok ? "Image saved." : r.error); if (r.ok && r.data) setF((s) => ({ ...s, imageUrl: r.data!.url })); }} /></>)}</div>
         </Field>

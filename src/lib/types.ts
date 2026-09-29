@@ -137,7 +137,6 @@ export interface ClubRow {
   color: string;
   imageUrl: string | null;
   description: string;
-  instructions: string;
   room: string;
   isOpen: boolean;
   awardsNote: boolean;
