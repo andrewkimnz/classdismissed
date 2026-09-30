@@ -95,7 +95,7 @@ Design decisions worth knowing:
   username + scrypt-hashed password, 24 h signed cookie, login rate-limited. *(Supabase Auth was considered;
   one fewer moving part on the night, and it works identically locally.)*
 * **Roles.** `admin`: everything. `teacher` ("game master"): **only the "During event" tools**: Score entry,
-  Teacher's Notes, Principal's Office and Detention. Every other staff-room page, and every action behind
+  Teacher's Notes, Principal's Office, Detention and Buzzer. Every other staff-room page, and every action behind
   them, is admin-only. It's enforced on the server (pages and actions), not just hidden from the menu, and a
   test fails if a new admin page is added without a permission check. Game masters land on Score entry when they sign in.
 * **Maths toss challenge.** Whichever subject is flagged `is_maths_challenge` (MATHS by default; toggle it on

@@ -46,7 +46,7 @@ export async function buzzIn(): Promise<ActionResult<{ won: boolean }>> {
 
 /** Moves from "start of round" (0) to Q1, then Q2, … A still-unresolved buzz is logged "unanswered" first. */
 export async function nextBuzzerQuestion(): Promise<ActionResult> {
-  return run("manage", async (ctx) => {
+  return run("buzzer", async (ctx) => {
     const [state] = await ctx.sql<{ questionNumber: number; buzzedStudentId: number | null; result: string | null }>`
       select question_number, buzzed_student_id, result from buzzer_state where id = 1`;
     if (state.buzzedStudentId !== null && state.result === null) {
@@ -71,7 +71,7 @@ export async function nextBuzzerQuestion(): Promise<ActionResult> {
  * Buzzer right now; either way the buzz still gets marked.
  */
 export async function resolveBuzz(input: { result: "correct" | "wrong" }): Promise<ActionResult> {
-  return run("manage", async (ctx) => {
+  return run("buzzer", async (ctx) => {
     const v = parse(z.object({ result: z.enum(["correct", "wrong"]) }), input);
     const [state] = await ctx.sql<{ questionNumber: number; buzzedStudentId: number | null; result: string | null }>`
       select question_number, buzzed_student_id, result from buzzer_state where id = 1`;
@@ -104,7 +104,7 @@ export async function resolveBuzz(input: { result: "correct" | "wrong" }): Promi
 
 /** Undoes a mis-tap or wrong buzz without advancing the question or touching the scoreboard: buzzing opens again for the same question. */
 export async function clearBuzz(): Promise<ActionResult> {
-  return run("manage", async (ctx) => {
+  return run("buzzer", async (ctx) => {
     const rows = await ctx.sql<{ id: number }>`
       update buzzer_state set buzzed_student_id = null, buzzed_at = null, result = null where id = 1 and buzzed_student_id is not null returning id`;
     if (!rows.length) throw new UserError("Nobody's buzzed in.");
@@ -119,7 +119,7 @@ export async function clearBuzz(): Promise<ActionResult> {
  * "Start the event fresh" (which resets the whole night), this only ever touches the buzzer.
  */
 export async function resetBuzzerRound(): Promise<ActionResult> {
-  return run("manage", async (ctx) => {
+  return run("buzzer", async (ctx) => {
     const [{ n }] = await ctx.sql<{ n: number }>`select count(*)::int as n from buzzer_rounds`;
     await resetBuzzerSession(ctx.sql);
     await audit(ctx, "buzzer.reset", `Buzzer: started a new session (cleared ${n} scoreboard ${n === 1 ? "entry" : "entries"})`, { entity: "buzzer_state" });

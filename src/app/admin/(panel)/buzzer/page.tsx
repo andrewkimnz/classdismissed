@@ -7,7 +7,7 @@ import { requireAdminPage } from "@/lib/auth/admin";
 export const metadata = { title: "Buzzer" };
 
 export default async function BuzzerAdminPage() {
-  await requireAdminPage("manage");
+  await requireAdminPage("buzzer");
   const [state, history, questions, live] = await Promise.all([getBuzzerAdminLive(), getBuzzerHistory(50), getBuzzerQuestions(), getLiveState()]);
   return (
     <>

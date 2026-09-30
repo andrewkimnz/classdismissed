@@ -15,7 +15,7 @@ export function StaffAdmin({ staff, meId }: { staff: Staff[]; meId: number }) {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <Panel title="Accounts">
-        <p className="mb-3 text-xs text-ink-soft"><b>Admin</b> = everything. <b>Game master</b> = only the “During event” tools: Score entry, Teacher’s Notes, Principal’s Office and Detention. Nothing else in the staff room.</p>
+        <p className="mb-3 text-xs text-ink-soft"><b>Admin</b> = everything. <b>Game master</b> = only the “During event” tools: Score entry, Teacher’s Notes, Principal’s Office, Detention and Buzzer. Nothing else in the staff room.</p>
         <ul className="divide-y divide-line">
           {staff.map((s) => (
             <li key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-3">

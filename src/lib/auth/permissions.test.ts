@@ -21,8 +21,8 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 describe("game master permissions", () => {
-  it("a game master holds exactly the four During-event permissions; an admin holds everything", () => {
-    assert.deepEqual([...TEACHER_PERMS].sort(), ["detention", "notes", "principal", "score"]);
+  it("a game master holds exactly the five During-event permissions; an admin holds everything", () => {
+    assert.deepEqual([...TEACHER_PERMS].sort(), ["buzzer", "detention", "notes", "principal", "score"]);
     for (const p of ["manage", "checkin"] as const) assert.equal(can(teacher, p), false, `teacher must not have ${p}`);
     for (const p of ROLE_PERMS.admin) assert.equal(can(admin, p), true);
   });
@@ -36,9 +36,9 @@ describe("game master permissions", () => {
 });
 
 describe("staff-room menu", () => {
-  it("has a 'During event' section holding exactly Score entry, Teacher's Notes, Principal's Office, Detention", () => {
+  it("has a 'During event' section holding exactly Score entry, Teacher's Notes, Principal's Office, Detention, Buzzer", () => {
     const items = ADMIN_NAV.filter((i) => i.group === DURING_EVENT).map((i) => i.href);
-    assert.deepEqual(items, ["/admin/scoring", "/admin/notes", "/admin/principal", "/admin/detention"]);
+    assert.deepEqual(items, ["/admin/scoring", "/admin/notes", "/admin/principal", "/admin/detention", "/admin/buzzer"]);
     assert.deepEqual(items, DURING_EVENT_HREFS);
     // and those four are no longer under "Run the night"
     assert.deepEqual(ADMIN_NAV.filter((i) => i.group === "Run the night").map((i) => i.href), ["/admin", "/admin/checkin"]);
@@ -62,7 +62,7 @@ describe("server-side enforcement (not just a hidden menu)", () => {
     for (const f of pages) assert.match(read(f), /requireAdminPage\("(\w+)"\)/, `${f} must call requireAdminPage("<permission>")`);
   });
 
-  it("only the four During-event pages accept a game master; every other page needs a permission they lack", () => {
+  it("only the During-event pages accept a game master; every other page needs a permission they lack", () => {
     for (const f of pages) {
       const perm = /requireAdminPage\("(\w+)"\)/.exec(read(f))![1] as (typeof TEACHER_PERMS)[number];
       const route = routeOf(f);
@@ -76,8 +76,8 @@ describe("server-side enforcement (not just a hidden menu)", () => {
     }
   });
 
-  it("game-master permissions are only used by the four During-event action files", () => {
-    const allowed: Record<string, string> = { score: "scoring.ts", notes: "notes.ts", principal: "principal.ts", detention: "detention.ts" };
+  it("game-master permissions are only used by the During-event action files", () => {
+    const allowed: Record<string, string> = { score: "scoring.ts", notes: "notes.ts", principal: "principal.ts", detention: "detention.ts", buzzer: "buzzer.ts" };
     for (const f of fs.readdirSync(path.join(root, "src/actions")).filter((x) => x.endsWith(".ts"))) {
       for (const m of read(`src/actions/${f}`).matchAll(/run\("(\w+)"/g)) {
         const perm = m[1];
@@ -86,14 +86,20 @@ describe("server-side enforcement (not just a hidden menu)", () => {
     }
   });
 
-  it("every button on the four game-master screens calls an action a game master may run", () => {
+  it("every button on the game-master screens calls an action a game master may run", () => {
     // action name -> permission, from the source
     const perms = new Map<string, string>();
     for (const f of fs.readdirSync(path.join(root, "src/actions")).filter((x) => x.endsWith(".ts"))) {
       const src = read(`src/actions/${f}`);
-      for (const m of src.matchAll(/export async function (\w+)[\s\S]*?run\("(\w+)"/g)) perms.set(m[1], m[2]);
+      // Split on each top-level function so a function with no run("...") (e.g. a student action
+      // using runAsStudent) can't have the lazy match skip past it and steal the next function's call.
+      for (const chunk of src.split(/(?=^export async function )/m)) {
+        const name = /^export async function (\w+)/.exec(chunk)?.[1];
+        const perm = /\brun\("(\w+)"/.exec(chunk)?.[1];
+        if (name && perm) perms.set(name, perm);
+      }
     }
-    for (const desk of ["scoring-desk", "notes-desk", "principal-desk", "detention-desk"]) {
+    for (const desk of ["scoring-desk", "notes-desk", "principal-desk", "detention-desk", "buzzer-desk"]) {
       const src = read(`src/components/admin/${desk}.tsx`);
       const imported = [...src.matchAll(/import \{([^}]+)\} from "@\/actions\/\w+"/g)].flatMap((m) => m[1].split(",").map((n) => n.trim()).filter(Boolean));
       assert.ok(imported.length > 0, `${desk} should import actions`);
