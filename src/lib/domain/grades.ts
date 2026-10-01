@@ -56,10 +56,12 @@ export interface ClassResult {
   max: number;
   originalPct: number | null;
   originalGrade: string;
+  /** currentPct − originalPct, after clamping — never more than the grade actually moved, even if
+   * the raw Principal's Office deltas would sum to something past 100% or below 0%. Same value as
+   * `change`; both are kept since callers reach for whichever name reads better. */
   modDelta: number;
   currentPct: number | null;
   currentGrade: string;
-  /** currentPct − originalPct, in percentage points. */
   change: number;
   rank: number;
 }
@@ -80,8 +82,18 @@ export function computeClassResult(
   const raw = scored.reduce((a, r) => a + (r.score ?? 0), 0);
   const max = scored.reduce((a, r) => a + r.max, 0);
   const originalPct = max > 0 ? round2((raw / max) * 100) : null;
-  const modDelta = mods.filter((m) => m.classId === klass.id && !m.revokedAt).reduce((a, m) => a + m.deltaPercent, 0);
-  const currentPct = originalPct === null && modDelta === 0 ? null : round2(clamp((originalPct ?? 0) + modDelta, 0, 100));
+
+  // Applied in order (oldest first — see load-world.ts), clamping after EVERY modification, not
+  // summing the raw deltas and clamping once at the end: a class already pinned at the 100% (or 0%)
+  // ceiling still has to drop back below it before a later modification can move it again, exactly
+  // like the real percentage would. Summing-then-clamping instead let a class rack up, say, two
+  // +10% successes past 100% invisibly, so a later −5% failure had no visible effect at all.
+  const classMods = mods.filter((m) => m.classId === klass.id && !m.revokedAt);
+  const currentPct =
+    originalPct === null && classMods.length === 0
+      ? null
+      : round2(classMods.reduce((pct, m) => clamp(pct + m.deltaPercent, 0, 100), originalPct ?? 0));
+  const modDelta = currentPct === null ? 0 : round2(currentPct - (originalPct ?? 0));
   return {
     klass,
     subjects: rows,
@@ -91,10 +103,10 @@ export function computeClassResult(
     max,
     originalPct,
     originalGrade: letterFor(originalPct, boundaries),
-    modDelta: round2(modDelta),
+    modDelta,
     currentPct,
     currentGrade: letterFor(currentPct, boundaries),
-    change: round2((currentPct ?? 0) - (originalPct ?? 0)),
+    change: modDelta,
   };
 }
 

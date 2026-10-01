@@ -72,6 +72,20 @@ describe("class results", () => {
     assert.equal(computeClassResult(k, subjects, scores, [mod({ deltaPercent: 50 })], boundaries).currentPct, 100);
     assert.equal(computeClassResult(k, subjects, scores, [mod({ deltaPercent: -500 })], boundaries).currentPct, 0);
   });
+  it("clamps after EVERY modification, not once at the end — a class pinned at 100% still drops when it next loses, and modDelta never overstates the real change", () => {
+    // 78.75% + 50 (→ clamped to 100) + 10 (already capped, no further effect) − 5 (should actually drop it).
+    const mods = [mod({ id: 1, deltaPercent: 50 }), mod({ id: 2, deltaPercent: 10 }), mod({ id: 3, deltaPercent: -5 })];
+    const r = computeClassResult(k, subjects, scores, mods, boundaries);
+    assert.equal(r.currentPct, 95, "the failure must pull it back down from the 100% ceiling, not get swallowed by the earlier overshoot");
+    assert.equal(r.modDelta, 16.25, "modDelta is the real effective change (95 − 78.75), not the raw sum of deltas (55)");
+    assert.equal(r.change, r.modDelta);
+  });
+  it("same ceiling effect at the floor: a class pinned at 0% still rises when it next gains", () => {
+    const mods = [mod({ id: 1, deltaPercent: -200 }), mod({ id: 2, deltaPercent: -10 }), mod({ id: 3, deltaPercent: 5 })];
+    const r = computeClassResult(k, subjects, scores, mods, boundaries);
+    assert.equal(r.currentPct, 5);
+    assert.equal(r.modDelta, 5 - 78.75);
+  });
   it("scores over the subjects marked so far (fair mid-event standings)", () => {
     const r = computeClassResult(k, subjects, scores.slice(0, 2), [], boundaries);
     assert.equal(r.scoredCount, 2);
