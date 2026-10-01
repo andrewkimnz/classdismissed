@@ -51,3 +51,15 @@ export async function purchaseKoinItem(input: { studentId: number; productId: nu
     return { message: `${student.name} bought ${product.name}. Balance: ${newBalance} Koins.`, data: { balance: newBalance } };
   });
 }
+
+/** Changes what an item costs. Doesn't touch stock or anything already bought — past purchases keep
+ * the price they were actually sold at, snapshotted onto their own koin_transactions row. */
+export async function updateKoinProductPrice(input: { id: number; price: number }): Promise<ActionResult> {
+  return run("store", async (ctx) => {
+    const v = parse(z.object({ id, price: z.number().int().min(1, "Price must be at least 1 Koin").max(999) }), input);
+    const rows = await ctx.sql<{ name: string }>`update koin_products set price = ${v.price} where id = ${v.id} returning name`;
+    if (!rows.length) throw new UserError("That item no longer exists.");
+    await audit(ctx, "koins.price", `${rows[0].name} price changed to ${v.price} Koins`, { entity: "koin_product", entityId: v.id });
+    return { message: `${rows[0].name} is now ${v.price} Koins.` };
+  });
+}

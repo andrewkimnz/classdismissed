@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { purchaseKoinItem } from "@/actions/koins";
+import { Check, Pencil, X } from "lucide-react";
+import { purchaseKoinItem, updateKoinProductPrice } from "@/actions/koins";
 import { ConfirmButton, Panel, useAct } from "@/components/admin/ui";
 import { StudentPicker, type PickerStudent } from "@/components/admin/student-picker";
 import { Chip } from "@/components/ui/kit";
@@ -31,15 +32,9 @@ export function StoreDesk({ products, students, phase }: { products: Product[]; 
         </p>
       )}
 
-      <Panel title={`Products (${products.length})`}>
+      <Panel title={`Products (${products.length})`} right={<span className="text-xs font-bold text-ink-soft">tap ✎ to change a price</span>}>
         <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-          {products.map((p) => (
-            <li key={p.id} className={cn("rounded-2xl border-2 p-3", p.stock === 0 ? "border-line bg-paper-2 opacity-60" : "border-ink bg-white")}>
-              <div className="font-extrabold leading-tight">{p.name}</div>
-              <div className="mt-0.5 text-sm font-bold text-ink-soft">{p.price} Koins</div>
-              {p.stock === 0 ? <Chip tone="bad" className="mt-1.5">Sold out</Chip> : <div className="mt-1.5 text-xs font-bold text-ink-soft">{p.stock} left</div>}
-            </li>
-          ))}
+          {products.map((p) => <ProductCard key={p.id} product={p} />)}
         </ul>
       </Panel>
 
@@ -79,5 +74,64 @@ export function StoreDesk({ products, students, phase }: { products: Product[]; 
         )}
       </Panel>
     </div>
+  );
+}
+
+function ProductCard({ product }: { product: Product }) {
+  const { act, pending } = useAct();
+  const [editing, setEditing] = useState(false);
+  const [price, setPrice] = useState(String(product.price));
+
+  const save = () => {
+    const next = Number(price);
+    if (!Number.isInteger(next) || next < 1) return;
+    if (next === product.price) {
+      setEditing(false);
+      return;
+    }
+    act(() => updateKoinProductPrice({ id: product.id, price: next }), { onOk: () => setEditing(false) });
+  };
+
+  return (
+    <li className={cn("rounded-2xl border-2 p-3", product.stock === 0 ? "border-line bg-paper-2 opacity-60" : "border-ink bg-white")}>
+      <div className="font-extrabold leading-tight">{product.name}</div>
+      {editing ? (
+        <div className="mt-1 flex items-center gap-1">
+          <input
+            type="number"
+            min={1}
+            max={999}
+            autoFocus
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") save();
+              if (e.key === "Escape") { setPrice(String(product.price)); setEditing(false); }
+            }}
+            className="w-16 rounded-lg border-2 border-ink px-1.5 py-0.5 text-sm font-bold tabular"
+          />
+          <button className="btn btn-ghost btn-sm !p-1" disabled={pending} onClick={save} aria-label="Save price">
+            <Check size={16} />
+          </button>
+          <button
+            className="btn btn-ghost btn-sm !p-1"
+            disabled={pending}
+            onClick={() => { setPrice(String(product.price)); setEditing(false); }}
+            aria-label="Cancel"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      ) : (
+        <button
+          className="mt-0.5 flex items-center gap-1 text-sm font-bold text-ink-soft"
+          onClick={() => { setPrice(String(product.price)); setEditing(true); }}
+        >
+          {product.price} Koins
+          <Pencil size={12} />
+        </button>
+      )}
+      {product.stock === 0 ? <Chip tone="bad" className="mt-1.5">Sold out</Chip> : <div className="mt-1.5 text-xs font-bold text-ink-soft">{product.stock} left</div>}
+    </li>
   );
 }
