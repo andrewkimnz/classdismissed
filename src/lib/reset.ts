@@ -51,7 +51,7 @@ export async function resetMathChallenges(sql: Sql): Promise<void> {
  * round". Shared by the manual "Reset session" button, the rotation bell, and "Start the event fresh". */
 export async function resetBuzzerSession(sql: Sql): Promise<void> {
   await sql`delete from buzzer_rounds`;
-  await sql`update buzzer_state set question_number = 0, buzzed_student_id = null, buzzed_at = null, result = null where id = 1`;
+  await sql`update buzzer_state set question_number = 0, buzzed_student_id = null, buzzed_at = null, result = null, locked_out_class_id = null where id = 1`;
 }
 
 /** Run inside a transaction. Returns what was cleared. */

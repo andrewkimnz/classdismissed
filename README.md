@@ -112,16 +112,20 @@ Design decisions worth knowing:
   never sent to the browser.
 * **Buzzer round.** Whichever subject is flagged `is_buzzer_challenge` (SOCIAL STUDIES by default, same
   one-at-a-time toggle as Maths) gets live trivia: while a class is in that subject, students see a
-  **Buzzer** tab with one big button. An exec on *Buzzer* in the staff room (admin-only; same note as
-  Maths tosses about adding game-master access) presses **Start the round**, then **Next question** to
-  move through Q1, Q2, … Whoever buzzes first is locked in — server-side, by an atomic
-  `UPDATE … WHERE buzzed_student_id IS NULL`, so two buzzes at the exact same instant can never both
-  win (a dedicated test hammers this with real concurrent connections). The exec marks them correct or
-  wrong, which logs to a running per-class scoreboard, then moves on; **Clear** undoes a mis-tap without
-  touching the scoreboard or the question number. A correct answer also adds 1 point to that student's
-  class's mark in whichever subject Buzzer is tied to, capped at that subject's max and skipped while
-  scoring is locked — the same `class_subject_scores` table Score entry writes to, so it's live on the
-  leaderboard immediately.
+  **Buzzer** tab with one big button. An exec on *Buzzer* in the staff room (game master or admin) presses
+  **Start the round**, then **Next question** to move through Q1, Q2, … Whoever buzzes first is locked
+  in — server-side, by an atomic `UPDATE … WHERE buzzed_student_id IS NULL`, so two buzzes at the exact
+  same instant can never both win (a dedicated test hammers this with real concurrent connections). The
+  exec marks them correct or wrong, which logs to a running per-class scoreboard; **Clear** undoes a
+  mis-tap without touching the scoreboard or the question number. A correct answer also adds 1 point to
+  that student's class's mark in whichever subject Buzzer is tied to, capped at that subject's max and
+  skipped while scoring is locked — the same `class_subject_scores` table Score entry writes to, so it's
+  live on the leaderboard immediately. A FIRST wrong answer doesn't end the question — `locked_out_class_id`
+  on `buzzer_state` excludes just that class and buzzing re-opens for a one-shot steal by whichever other
+  class is still eligible (normally the one other class sharing that room this period); a second wrong
+  answer (the steal missed too) awards nothing, and the exec presses **Next question** as usual, which
+  also clears the lock for the next one. The buzzer panel, staff desk and TV board all show a "steal's
+  open" moment in between.
   *Questions* under Set up is a multiple-choice question bank (2–6 choices, one marked correct, reorder
   with ▲▼): "question N" in the round is simply the Nth one there, in play order. It's entirely
   optional — advancing past the end of the bank, or never adding any questions, just falls back to a
@@ -149,8 +153,9 @@ Design decisions worth knowing:
 `class_subject_scores` · `grade_boundaries` · `clubs` · `club_completions` · `teacher_notes` ·
 `principal_attempts` (success/caught, fixed numbers, snapshotted per attempt) · `grade_modifications` · `detentions` · `photos` · `audit_log` ·
 `live_state` · `math_challenges` (one row per student per period: streak, current question, status) ·
-`buzzer_state` (single row: the live round) · `buzzer_rounds` (the scoreboard: one row per resolved
-question, with a snapshot of the question text) · `buzzer_questions` (the prepared multiple-choice bank).
+`buzzer_state` (single row: the live round, plus `locked_out_class_id` for an in-progress steal) ·
+`buzzer_rounds` (the scoreboard: one row per resolved question, with a snapshot of the question text) ·
+`buzzer_questions` (the prepared multiple-choice bank).
 
 Unique partial indexes enforce the live-event edge cases in the database itself: one active completion and one active note per
 **class** per club (double-tap safe), one current photo per student/kind.

@@ -26,6 +26,8 @@ export default async function BuzzerAdminPage() {
           photoUrl: state.photoUrl,
           buzzedAt: state.buzzedAt?.toISOString() ?? null,
           result: state.result,
+          lockedOutClassId: state.lockedOutClassId,
+          lockedOutClassName: state.lockedOutClassName,
         }}
         history={history.map((r) => ({
           id: r.id, questionNumber: r.questionNumber, questionText: r.questionText, studentName: r.studentName, className: r.className, classColor: r.classColor,

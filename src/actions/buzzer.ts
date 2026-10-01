@@ -32,12 +32,17 @@ export async function buzzIn(): Promise<ActionResult<{ won: boolean }>> {
     if (!student) throw new UserError("Couldn't find your account. Reload and sign in again.");
     if (!currentBuzzerSlot(world, student.classId)) throw new UserError("Buzzer isn't your class's current class right now.");
 
-    const [state] = await ctx.sql<{ questionNumber: number }>`select question_number from buzzer_state where id = 1`;
+    const [state] = await ctx.sql<{ questionNumber: number; lockedOutClassId: number | null }>`
+      select question_number, locked_out_class_id from buzzer_state where id = 1`;
     if (!state || state.questionNumber < 1) throw new UserError("The round hasn't started yet.");
+    if (state.lockedOutClassId !== null && state.lockedOutClassId === student.classId) {
+      throw new UserError("Your team already had a go on this question — it's the other team's steal.");
+    }
 
     const claimed = await ctx.sql<{ id: number }>`
       update buzzer_state set buzzed_student_id = ${ctx.studentId}, buzzed_at = now(), result = null
       where id = 1 and question_number = ${state.questionNumber} and buzzed_student_id is null
+        and (locked_out_class_id is null or locked_out_class_id <> ${student.classId})
       returning id`;
     if (!claimed.length) return { message: "Someone beat you to it!", data: { won: false } };
     return { message: "You buzzed in first!", data: { won: true } };
@@ -57,7 +62,7 @@ export async function nextBuzzerQuestion(): Promise<ActionResult> {
         values (${state.questionNumber}, ${state.buzzedStudentId}, ${student?.classId ?? null}, now(), 'unanswered', ${ctx.actor.id}, ${text})`;
     }
     const next = state.questionNumber + 1;
-    await ctx.sql`update buzzer_state set question_number = ${next}, buzzed_student_id = null, buzzed_at = null, result = null where id = 1`;
+    await ctx.sql`update buzzer_state set question_number = ${next}, buzzed_student_id = null, buzzed_at = null, result = null, locked_out_class_id = null where id = 1`;
     await audit(ctx, "buzzer.next", `Buzzer: moved to question ${next}`, { entity: "buzzer_state" });
     return { message: `Now on question ${next}.` };
   });
@@ -69,12 +74,17 @@ export async function nextBuzzerQuestion(): Promise<ActionResult> {
  * `is_buzzer_challenge`), capped at that subject's max — the same table Score entry writes to, so it
  * shows up on the leaderboard immediately. Skipped if scoring is locked, or if no subject is tied to
  * Buzzer right now; either way the buzz still gets marked.
+ *
+ * Steal: a FIRST wrong answer on a question doesn't end it — it re-opens buzzing for everyone except
+ * the team that just missed (`locked_out_class_id`), so the other team gets one shot at a steal. A
+ * second wrong answer (locked_out_class_id already set) just marks it: no further re-opening, nobody
+ * scores, and the exec moves on with Next question.
  */
 export async function resolveBuzz(input: { result: "correct" | "wrong" }): Promise<ActionResult> {
   return run("buzzer", async (ctx) => {
     const v = parse(z.object({ result: z.enum(["correct", "wrong"]) }), input);
-    const [state] = await ctx.sql<{ questionNumber: number; buzzedStudentId: number | null; result: string | null }>`
-      select question_number, buzzed_student_id, result from buzzer_state where id = 1`;
+    const [state] = await ctx.sql<{ questionNumber: number; buzzedStudentId: number | null; result: string | null; lockedOutClassId: number | null }>`
+      select question_number, buzzed_student_id, result, locked_out_class_id from buzzer_state where id = 1`;
     if (state.buzzedStudentId === null) throw new UserError("Nobody's buzzed in yet.");
     if (state.result !== null) throw new UserError("Already marked.");
     const [student] = await ctx.sql<{ name: string; classId: number | null; className: string | null }>`
@@ -97,8 +107,16 @@ export async function resolveBuzz(input: { result: "correct" | "wrong" }): Promi
       }
     }
 
-    await audit(ctx, "buzzer.resolve", `Buzzer Q${state.questionNumber}: ${student?.name ?? "a student"} marked ${v.result}.${scoreNote}`, { entity: "buzzer_state" });
-    return { message: `Marked ${v.result}.${scoreNote}` };
+    if (v.result === "wrong" && state.lockedOutClassId === null && student?.classId) {
+      // First miss: re-open buzzing for the steal, excluding only the team that just missed.
+      await ctx.sql`update buzzer_state set buzzed_student_id = null, buzzed_at = null, result = null, locked_out_class_id = ${student.classId} where id = 1`;
+      await audit(ctx, "buzzer.resolve", `Buzzer Q${state.questionNumber}: ${student?.name ?? "a student"} (${student.className ?? "their class"}) marked wrong — steal open for the other team.`, { entity: "buzzer_state" });
+      return { message: "Marked wrong. Steal's open — buzzing re-opened for the other team." };
+    }
+
+    const stealFailed = v.result === "wrong" && state.lockedOutClassId !== null;
+    await audit(ctx, "buzzer.resolve", `Buzzer Q${state.questionNumber}: ${student?.name ?? "a student"} marked ${v.result}.${scoreNote}${stealFailed ? " Steal missed too — nobody scored." : ""}`, { entity: "buzzer_state" });
+    return { message: stealFailed ? "Marked wrong. Steal missed too — nobody scored. Move on to the next question." : `Marked ${v.result}.${scoreNote}` };
   });
 }
 

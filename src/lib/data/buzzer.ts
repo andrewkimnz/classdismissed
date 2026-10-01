@@ -23,11 +23,15 @@ export interface BuzzerLive {
   photoUrl: string | null;
   buzzedAt: Date | null;
   result: "correct" | "wrong" | null;
+  /** Set after a FIRST wrong answer: the team excluded from this question's steal attempt. */
+  lockedOutClassId: number | null;
+  lockedOutClassName: string | null;
 }
 
 const IDLE: BuzzerLive = {
   questionNumber: 0, questionText: null, choices: null, correctIndex: null, buzzedStudentId: null, buzzedStudentName: null,
   classId: null, className: null, classColor: null, photoUrl: null, buzzedAt: null, result: null,
+  lockedOutClassId: null, lockedOutClassName: null,
 };
 
 /** Public-safe: student app and TV. The correct answer is redacted until a buzz is resolved. */
@@ -37,10 +41,11 @@ export const getBuzzerLive = cache(async (): Promise<BuzzerLive> => {
       case when b.result is not null then q.correct_index else null end as correct_index,
       b.buzzed_student_id, s.name as buzzed_student_name, s.class_id, c.name as class_name, c.color as class_color,
       (select p.url from photos p where p.student_id = s.id and p.kind = 'student_id' and p.is_current limit 1) as photo_url,
-      b.buzzed_at, b.result
+      b.buzzed_at, b.result, b.locked_out_class_id, lc.name as locked_out_class_name
     from buzzer_state b
     left join students s on s.id = b.buzzed_student_id
     left join classes c on c.id = s.class_id
+    left join classes lc on lc.id = b.locked_out_class_id
     left join lateral (select * from buzzer_questions order by sort_order, id offset greatest(b.question_number - 1, 0) limit 1) q
       on b.question_number >= 1
     where b.id = 1`;
@@ -55,10 +60,11 @@ export const getBuzzerAdminLive = cache(async (): Promise<BuzzerLive> => {
     select b.question_number, q.question as question_text, q.choices, q.correct_index,
       b.buzzed_student_id, s.name as buzzed_student_name, s.class_id, c.name as class_name, c.color as class_color,
       (select p.url from photos p where p.student_id = s.id and p.kind = 'student_id' and p.is_current limit 1) as photo_url,
-      b.buzzed_at, b.result
+      b.buzzed_at, b.result, b.locked_out_class_id, lc.name as locked_out_class_name
     from buzzer_state b
     left join students s on s.id = b.buzzed_student_id
     left join classes c on c.id = s.class_id
+    left join classes lc on lc.id = b.locked_out_class_id
     left join lateral (select * from buzzer_questions order by sort_order, id offset greatest(b.question_number - 1, 0) limit 1) q
       on b.question_number >= 1
     where b.id = 1`;

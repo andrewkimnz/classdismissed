@@ -23,6 +23,8 @@ export interface BuzzerDeskState {
   photoUrl: string | null;
   buzzedAt: string | null;
   result: "correct" | "wrong" | null;
+  lockedOutClassId: number | null;
+  lockedOutClassName: string | null;
 }
 
 export interface BuzzerDeskRound {
@@ -74,6 +76,11 @@ export function BuzzerDesk({ rev, state, history, questionCount }: { rev: number
         </button>
 
         <div className="mt-4">
+          {state.buzzedStudentId === null && state.lockedOutClassName && (
+            <p className="mb-2 rounded-xl border-2 border-dashed border-pen bg-pen/10 px-3 py-2 text-sm font-bold text-pen">
+              🔁 Steal's open — {state.lockedOutClassName} got it wrong, so only another team can buzz in now.
+            </p>
+          )}
           {state.buzzedStudentId === null ? (
             <p className="text-sm text-ink-soft">{started ? "Nobody's buzzed in yet." : "Press start when you're ready for Q1."}</p>
           ) : (

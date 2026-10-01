@@ -38,6 +38,8 @@ export default async function BuzzerPage() {
       className={state.className}
       result={state.result}
       myStudentId={student.id}
+      lockedOut={state.lockedOutClassId !== null && state.lockedOutClassId === student.classId}
+      stealOpen={state.lockedOutClassId !== null}
     />
   );
 }

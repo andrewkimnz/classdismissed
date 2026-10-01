@@ -13,11 +13,15 @@ interface Props {
   className: string | null;
   result: "correct" | "wrong" | null;
   myStudentId: number;
+  /** True once this question has had a first wrong answer from MY team — I can't buzz again this question. */
+  lockedOut: boolean;
+  /** True once this question has had a first wrong answer from ANY team — buzzing is open for a steal. */
+  stealOpen: boolean;
 }
 
 /** A buzzer game is all about speed, so this polls faster than the app's usual 5 s heartbeat check —
  * every 1.5 s — so "someone already buzzed" shows up almost as fast as it happens. */
-export function BuzzerPanel({ rev, questionNumber, buzzedStudentId, buzzedStudentName, className, result, myStudentId }: Props) {
+export function BuzzerPanel({ rev, questionNumber, buzzedStudentId, buzzedStudentName, className, result, myStudentId, lockedOut, stealOpen }: Props) {
   useLiveReload(rev, 1500);
   const [pending, start] = useTransition();
   const [flash, setFlash] = useState<string | null>(null);
@@ -35,9 +39,25 @@ export function BuzzerPanel({ rev, questionNumber, buzzedStudentId, buzzedStuden
     );
   }
 
+  if (buzzedStudentId === null && lockedOut) {
+    return (
+      <div className="card bg-paper-2 p-8 text-center">
+        <div className="label mb-3">Question {questionNumber}</div>
+        <div className="text-5xl">🙈</div>
+        <div className="display mt-2 text-2xl">Your team already had a go</div>
+        <p className="mt-1 text-sm text-ink-soft">The other team's stealing this one — wait for the next question.</p>
+      </div>
+    );
+  }
+
   if (buzzedStudentId === null) {
     return (
       <div className="card p-6 text-center">
+        {stealOpen && (
+          <p className="mb-3 rounded-xl border-2 border-dashed border-pen bg-pen/10 px-3 py-2 text-sm font-bold text-pen">
+            🔁 Steal chance! The other team missed it.
+          </p>
+        )}
         <div className="label mb-3">Question {questionNumber}</div>
         <button
           disabled={pending}

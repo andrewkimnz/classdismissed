@@ -23,6 +23,7 @@ export default async function TvBuzzerPage() {
       classColor={state.classColor}
       photoUrl={state.photoUrl}
       result={state.result}
+      lockedOutClassName={state.lockedOutClassName}
       tally={tally}
     />
   );

@@ -27,12 +27,13 @@ interface Props {
   classColor: string | null;
   photoUrl: string | null;
   result: "correct" | "wrong" | null;
+  lockedOutClassName: string | null;
   tally: TvTally[];
 }
 
 /** A passive, unauthenticated screen: no student or admin session, nothing to click. */
 export function BuzzerBoard({
-  rev, questionNumber, questionText, choices, correctIndex, buzzedStudentId, buzzedStudentName, className, classColor, photoUrl, result, tally,
+  rev, questionNumber, questionText, choices, correctIndex, buzzedStudentId, buzzedStudentName, className, classColor, photoUrl, result, lockedOutClassName, tally,
 }: Props) {
   useLiveReload(rev, 1500);
 
@@ -79,6 +80,15 @@ export function BuzzerBoard({
           </div>
         )}
       </section>
+
+      {buzzedStudentId === null && lockedOutClassName && (
+        <section className="mb-6">
+          <div className="card border-4 border-pen bg-pen/10 p-6 text-center">
+            <div className="display text-4xl text-pen">🔁 STEAL!</div>
+            <p className="mt-1 text-xl font-bold">{lockedOutClassName} got it wrong — anyone else can buzz in.</p>
+          </div>
+        </section>
+      )}
 
       {buzzedStudentId !== null && (
         <section className="mb-6">

@@ -141,7 +141,7 @@ export async function seed(conn: Db, opts: { profile: SeedProfile; demoAdmin?: b
     // buzzer_state's singleton row (id = 1) is a foreign-key child of students/periods, so the CASCADE
     // above truncates it too: put it back, freshly reset, every time.
     await sql`insert into buzzer_state (id) values (1) on conflict (id) do update set
-      question_number = 0, buzzed_student_id = null, buzzed_at = null, result = null`;
+      question_number = 0, buzzed_student_id = null, buzzed_at = null, result = null, locked_out_class_id = null`;
 
     // ── configuration ────────────────────────────────────────────────────
     for (const [grade, min] of BOUNDARIES) {
