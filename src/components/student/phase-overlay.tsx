@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Crest } from "@/components/ui/crest";
 import { Petals } from "@/components/ui/kit";
 
@@ -14,6 +15,7 @@ const KEY = "kac.phase.seen";
  */
 export function PhaseOverlay({ phase }: { phase: Phase }) {
   const [show, setShow] = useState<Phase | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     let seen: string | null = null;
@@ -31,9 +33,12 @@ export function PhaseOverlay({ phase }: { phase: Phase }) {
 
   useEffect(() => {
     if (!show) return;
+    // The keepsake only renders on the home page, so jump there now: whichever tab the
+    // student was last on, dismissing (or the timeout below) must not strand them on it.
+    if (show === "event_complete") router.push("/");
     const t = window.setTimeout(() => setShow(null), 20000);
     return () => window.clearTimeout(t);
-  }, [show]);
+  }, [show, router]);
 
   if (!show) return null;
   const complete = show === "event_complete";
