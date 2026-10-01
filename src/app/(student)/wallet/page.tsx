@@ -24,9 +24,9 @@ export default async function WalletPage() {
 
   return (
     <div className="space-y-5">
-      <div className="card overflow-hidden border-2 border-ink bg-gradient-to-br from-[#ffd54a] via-[#ff9e7d] to-[#ee4f86] p-6 text-center text-white shadow-[0_4px_0_var(--ink)]">
-        <div className="text-[11px] font-extrabold uppercase tracking-[0.3em] text-white/85">Kaco Koins</div>
-        <div className="display mt-1 text-[56px] leading-none drop-shadow-[0_3px_0_rgba(0,0,0,0.25)]">🪙 {balance}</div>
+      <div className="card bg-white p-6 text-center">
+        <div className="label">Kaco Koins</div>
+        <div className="display mt-1 text-[56px] leading-none">🪙 {balance}</div>
       </div>
 
       <div>
