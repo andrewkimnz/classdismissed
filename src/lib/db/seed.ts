@@ -257,7 +257,7 @@ export async function seed(conn: Db, opts: { profile: SeedProfile; demoAdmin?: b
 
     // Kaco Koins: every member starts Phase 2 with 15, then +5 per club their class has completed.
     for (const sid of studentIds.values()) {
-      await sql`insert into koin_transactions (student_id, delta, description, kind) values (${sid}, 15, 'Phase 2 Starting Balance', 'starting_balance')`;
+      await sql`insert into koin_transactions (student_id, delta, description, kind) values (${sid}, 15, 'Starting Balance', 'starting_balance')`;
     }
     for (const [cls, clubs] of Object.entries(completed)) {
       const classStudentIds = ROSTER[CLASSES.findIndex((c) => c.name === cls)].map((name) => studentIds.get(name)!);

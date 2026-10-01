@@ -10,7 +10,7 @@ export const KOIN_CLUB_REWARD = 5;
 export async function grantKoinStartingBalance(sql: Sql, studentId: number): Promise<void> {
   await sql`
     insert into koin_transactions (student_id, delta, description, kind)
-    values (${studentId}, ${KOIN_STARTING_BALANCE}, 'Phase 2 Starting Balance', 'starting_balance')
+    values (${studentId}, ${KOIN_STARTING_BALANCE}, 'Starting Balance', 'starting_balance')
     on conflict (student_id) where kind = 'starting_balance' and revoked_at is null do nothing`;
 }
 
@@ -22,7 +22,7 @@ export async function grantKoinStartingBalance(sql: Sql, studentId: number): Pro
 export async function grantAllKoinStartingBalances(sql: Sql): Promise<number> {
   const rows = await sql<{ id: number }>`
     insert into koin_transactions (student_id, delta, description, kind)
-    select id, ${KOIN_STARTING_BALANCE}, 'Phase 2 Starting Balance', 'starting_balance' from students
+    select id, ${KOIN_STARTING_BALANCE}, 'Starting Balance', 'starting_balance' from students
     on conflict (student_id) where kind = 'starting_balance' and revoked_at is null do nothing
     returning id`;
   return rows.length;
