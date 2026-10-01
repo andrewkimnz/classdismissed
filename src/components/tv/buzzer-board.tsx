@@ -63,7 +63,6 @@ export function BuzzerBoard({
               <span className="display text-8xl leading-none">{countdown}</span>
             </div>
             <div className="display mt-5 text-5xl">Get ready…</div>
-            <p className="mt-2 text-xl text-ink-soft">Buzzing opens in a moment — don&rsquo;t jump the gun!</p>
           </div>
         ) : questionText && choices ? (
           <div className="card bg-white p-8">
