@@ -45,7 +45,6 @@ export function BuzzerPanel({ rev, questionNumber, buzzedStudentId, buzzedStuden
         <div className="label mb-3">Question {questionNumber}</div>
         <div className="text-5xl">🙈</div>
         <div className="display mt-2 text-2xl">Your team already had a go</div>
-        <p className="mt-1 text-sm text-ink-soft">The other team's stealing this one — wait for the next question.</p>
       </div>
     );
   }
