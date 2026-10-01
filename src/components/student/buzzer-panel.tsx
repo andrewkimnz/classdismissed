@@ -76,15 +76,21 @@ export function BuzzerPanel({ rev, questionNumber, buzzedStudentId, buzzedStuden
   }
 
   const isMe = buzzedStudentId === myStudentId;
+  let sub: string;
+  if (result === "correct") {
+    sub = isMe ? "Correct! Next question soon." : `Correct — ${className ?? "their team"} got the point.`;
+  } else if (result === "wrong") {
+    sub = isMe ? "Not quite — next question soon." : `Wrong — not ${className ?? "their team"}'s question anymore.`;
+  } else {
+    sub = isMe ? "Answer out loud — an exec will mark it." : "Wait for the next question.";
+  }
   return (
     <div className={cn("card p-8 text-center", result === "correct" ? "bg-mint/30" : result === "wrong" ? "bg-pen/10" : "bg-sun")}>
       <div className="label mb-2">Question {questionNumber}</div>
       <div className="text-5xl">{result === "correct" ? "✅" : result === "wrong" ? "❌" : "🔔"}</div>
       <div className="display mt-2 text-3xl">{isMe ? "You buzzed in!" : `${buzzedStudentName ?? "Someone"} buzzed in first`}</div>
       {className && <p className="mt-1 text-sm font-bold text-ink-soft">{className}</p>}
-      <p className="mt-3 text-sm text-ink-soft">
-        {result === "correct" ? "Correct! Next question soon." : result === "wrong" ? "Not quite — next question soon." : isMe ? "Answer out loud — an exec will mark it." : "Wait for the next question."}
-      </p>
+      <p className="mt-3 text-sm text-ink-soft">{sub}</p>
     </div>
   );
 }
