@@ -37,7 +37,6 @@ export default async function ClubPage({ params }: { params: Promise<{ id: strin
             <span className="display text-xl">Room {club.room || "TBC"}</span>
           </div>
           {club.description && <p className="text-[16px] leading-snug">{club.description}</p>}
-          {club.awardsNote && <p className="text-[13px] font-bold text-ink-soft">Finish, then show an exec and they&rsquo;ll stamp your Teacher&rsquo;s Note.</p>}
         </div>
       </div>
       {!club.isOpen && <p className="rounded-xl border-2 border-dashed border-line bg-white/70 p-3 text-center text-sm font-bold text-ink-soft">This club is closed right now. Try another one and come back!</p>}
