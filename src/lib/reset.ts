@@ -1,4 +1,5 @@
 import type { Sql } from "@/lib/db/sql";
+import { grantAllKoinStartingBalances } from "@/lib/koins";
 
 /**
  * "Start the event fresh".
@@ -12,6 +13,11 @@ import type { Sql } from "@/lib/db/sql";
  * (numbers, class, login codes, ID and team photos), clubs, subjects, timetable and rooms,
  * rules (notes per attempt, rooms), grade boundaries, staff accounts, and the activity log
  * (which records the reset itself).
+ *
+ * Kaco Koins: every member's ledger is wiped along with the rest of the event's activity, but
+ * everyone is immediately re-granted their 15-Koin Phase 2 starting balance as part of the same
+ * reset — so a freshly-reset event never leaves anyone sitting at 0, even before the exec gets
+ * around to flipping the phase to After School again.
  */
 export interface ResetCounts {
   scores: number;
@@ -69,6 +75,7 @@ export async function resetEventData(sql: Sql): Promise<ResetCounts> {
   await sql`delete from club_completions`;
   await sql`delete from class_subject_scores`;
   await sql`update koin_products set stock = initial_stock`;
+  await grantAllKoinStartingBalances(sql); // everyone starts the fresh event back at 15, not 0
   await sql`update students set attendance = 'expected', checked_in_at = null`;
   await sql`update events set phase = 'school_day', phase_changed_at = now(), current_period = 0, scoring_locked = false where id = 1`;
   return counts;

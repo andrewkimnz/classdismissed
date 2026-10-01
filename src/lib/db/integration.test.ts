@@ -286,10 +286,20 @@ describe("start the event fresh", () => {
     const cleared = await c.tx((sql) => resetEventData(sql));
     assert.deepEqual(cleared, before, "reports exactly what it cleared");
 
-    // everything that happened is gone…
-    assert.deepEqual(await countEventActivity(c.sql), {
-      scores: 0, notes: 0, clubCompletions: 0, attempts: 0, gradeChanges: 0, detentions: 0, checkedIn: 0, mathChallenges: 0, buzzerRounds: 0, koinTransactions: 0,
+    // everything that happened is gone — except Kaco Koins, where "gone" means "back to the
+    // starting balance", not zero: every student's old ledger is wiped, but each gets exactly one
+    // fresh 15-Koin starting-balance row in the same reset.
+    const totalStudents = kept.students;
+    const after = await countEventActivity(c.sql);
+    assert.deepEqual(after, {
+      scores: 0, notes: 0, clubCompletions: 0, attempts: 0, gradeChanges: 0, detentions: 0, checkedIn: 0, mathChallenges: 0, buzzerRounds: 0,
+      koinTransactions: totalStudents,
     });
+    const balances = await c.sql<{ balance: number }>`
+      select coalesce(sum(delta), 0)::int as balance from koin_transactions where revoked_at is null group by student_id`;
+    assert.equal(balances.length, totalStudents, "every student has exactly one (fresh) balance");
+    assert.ok(balances.every((b) => b.balance === 15), "and that balance is exactly the 15-Koin starting amount, not 0");
+
     const [lemonTeaAfter] = await c.sql<{ stock: number; initialStock: number }>`select stock, initial_stock from koin_products where name = 'Vita Lemon Tea'`;
     assert.equal(lemonTeaAfter.stock, lemonTeaAfter.initialStock, "Store stock is restocked to its starting count");
     const [buzzer] = await c.sql<{ questionNumber: number; buzzedStudentId: number | null }>`select question_number, buzzed_student_id from buzzer_state where id = 1`;
