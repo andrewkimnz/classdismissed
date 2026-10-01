@@ -92,6 +92,27 @@ export function NotesProgress({ clubs, done, balance, className }: { clubs: Club
   );
 }
 
+/** Tells the class when they've earned enough notes to make a Principal's Office attempt, and where to go. */
+export function PrincipalOfficePrompt({ balance, room }: { balance: NoteBalance; room: string }) {
+  const { available, required } = balance;
+  if (required <= 0) return null;
+  const eligible = available >= required;
+  const needed = required - available;
+  return (
+    <div className={cn("flex items-center gap-3 rounded-2xl border-2 p-3.5", eligible ? "border-ink bg-mint/25 shadow-[0_3px_0_var(--ink)]" : "border-dashed border-line bg-paper-2")}>
+      <span className="text-3xl">🕵️</span>
+      <div className="min-w-0 flex-1">
+        <div className="display text-lg leading-tight">Principal&rsquo;s Office</div>
+        {eligible ? (
+          <div className="text-[13px] font-bold text-ink-soft">You&rsquo;ve got {required} notes &mdash; head to Room {room} and risk it!</div>
+        ) : (
+          <div className="text-[13px] font-bold text-ink-soft">Earn {required} Teacher&rsquo;s Notes to unlock a visit &mdash; {needed} to go.</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ClubCard({ club, done, href }: { club: ClubRow; done: boolean; href: string }) {
   return (
     <Link href={href} className="card group relative block overflow-hidden bg-white transition-transform active:translate-y-[3px] active:shadow-[0_1px_0_var(--ink)]">

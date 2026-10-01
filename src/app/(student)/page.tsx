@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { IdCard } from "@/components/student/id-card";
 import { Keepsake } from "@/components/student/keepsake";
-import { ClubCard, GradeCompare, NotesProgress } from "@/components/student/parts";
+import { ClubCard, GradeCompare, NotesProgress, PrincipalOfficePrompt } from "@/components/student/parts";
 import { NextClass, NowCard, TimetableList } from "@/components/student/timetable";
 import { Card, ClassBadge, LinkButton, SectionTitle } from "@/components/ui/kit";
 import { requireStudent } from "@/lib/auth/student";
@@ -49,6 +49,8 @@ export default async function HomePage() {
         <Card>
           <NotesProgress clubs={v.noteClubs} done={v.doneClubIds} balance={v.notes} className={v.klass?.name} />
         </Card>
+
+        {v.klass && <PrincipalOfficePrompt balance={v.notes} room={event.principalRoom} />}
 
         {v.result && (
           <Card>
