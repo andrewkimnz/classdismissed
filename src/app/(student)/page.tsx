@@ -80,7 +80,7 @@ export default async function HomePage() {
       {card}
       {v.klass ? (
         <>
-          <NowCard rows={v.rows} tz={event.timezone} color={color} />
+          <NowCard rows={v.rows} tz={event.timezone} color={color} assemblyPoint={event.assemblyPoint} />
           <NextClass rows={v.rows} tz={event.timezone} />
           {v.result && (
             <Link href="/class" className="card-soft flex items-center gap-3 p-3.5 active:bg-paper-2">

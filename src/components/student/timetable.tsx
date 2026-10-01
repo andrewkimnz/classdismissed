@@ -6,7 +6,7 @@ import { Chip, Meter } from "@/components/ui/kit";
 const roomLabel = (room: string) => (room ? `Room ${room}` : "Room TBC");
 
 /** The big "right now" card. Highlighted hard on purpose. */
-export function NowCard({ rows, tz, color }: { rows: TimetableRow[]; tz: string; color: string }) {
+export function NowCard({ rows, tz, color, assemblyPoint }: { rows: TimetableRow[]; tz: string; color: string; assemblyPoint: string }) {
   const current = rows.find((r) => r.status === "now");
   const first = rows.find((r) => r.status === "upcoming");
   const done = rows.length > 0 && rows.every((r) => r.status === "complete");
@@ -16,7 +16,7 @@ export function NowCard({ rows, tz, color }: { rows: TimetableRow[]; tz: string;
       <div className="card bg-white p-5 text-center">
         <div className="text-4xl">🎒</div>
         <div className="display mt-1 text-2xl">School day complete</div>
-        <p className="mt-1 text-sm text-ink-soft">Head back to the assembly point and wait for the final bell.</p>
+        <p className="mt-1 text-sm text-ink-soft">Head back to the assembly point at {assemblyPoint} and wait for the final bell.</p>
       </div>
     );
   }
