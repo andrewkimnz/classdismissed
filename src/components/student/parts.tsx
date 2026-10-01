@@ -104,7 +104,7 @@ export function PrincipalOfficePrompt({ balance, room }: { balance: NoteBalance;
       <div className="min-w-0 flex-1">
         <div className="display text-lg leading-tight">Principal&rsquo;s Office</div>
         {eligible ? (
-          <div className="text-[13px] font-bold text-ink-soft">You&rsquo;ve got {required} notes &mdash; head to Room {room} and risk it!</div>
+          <div className="text-[13px] font-bold text-ink-soft">You&rsquo;ve got {required} notes, try sneak into the office at {room} and change your grade!</div>
         ) : (
           <div className="text-[13px] font-bold text-ink-soft">Earn {required} Teacher&rsquo;s Notes to unlock a visit &mdash; {needed} to go.</div>
         )}
