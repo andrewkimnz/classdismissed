@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useCountdown } from "@/components/use-countdown";
 import { useLiveReload } from "@/components/use-live-reload";
 import { buzzIn } from "@/actions/buzzer";
 import { cn } from "@/lib/cn";
@@ -17,12 +18,15 @@ interface Props {
   lockedOut: boolean;
   /** True once this question has had a first wrong answer from ANY team — buzzing is open for a steal. */
   stealOpen: boolean;
+  /** Null once buzzing is open; otherwise the moment it opens — see src/actions/buzzer.ts. */
+  opensAt: string | null;
 }
 
 /** A buzzer game is all about speed, so this polls faster than the app's usual 5 s heartbeat check —
  * every 1.5 s — so "someone already buzzed" shows up almost as fast as it happens. */
-export function BuzzerPanel({ rev, questionNumber, buzzedStudentId, buzzedStudentName, className, result, myStudentId, lockedOut, stealOpen }: Props) {
+export function BuzzerPanel({ rev, questionNumber, buzzedStudentId, buzzedStudentName, className, result, myStudentId, lockedOut, stealOpen, opensAt }: Props) {
   useLiveReload(rev, 1500);
+  const countdown = useCountdown(opensAt);
   const [pending, start] = useTransition();
   const [flash, setFlash] = useState<string | null>(null);
   // "Too slow" / "you buzzed in first" is only meaningful for the question it was said about —
@@ -45,6 +49,18 @@ export function BuzzerPanel({ rev, questionNumber, buzzedStudentId, buzzedStuden
         <div className="label mb-3">Question {questionNumber}</div>
         <div className="text-5xl">🙈</div>
         <div className="display mt-2 text-2xl">Your team already had a go</div>
+      </div>
+    );
+  }
+
+  if (buzzedStudentId === null && countdown > 0) {
+    return (
+      <div className="card p-6 text-center">
+        <div className="label mb-3">Question {questionNumber}</div>
+        <div className="pulse-ring mx-auto flex h-56 w-56 items-center justify-center rounded-full border-4 border-ink bg-sun">
+          <span className="display text-7xl leading-none">{countdown}</span>
+        </div>
+        <p className="mt-4 text-sm font-bold text-ink-soft">Get ready — buzzing opens in a moment!</p>
       </div>
     );
   }

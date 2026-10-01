@@ -1,5 +1,6 @@
 "use client";
 
+import { useCountdown } from "@/components/use-countdown";
 import { useLiveReload } from "@/components/use-live-reload";
 import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/cn";
@@ -28,14 +29,17 @@ interface Props {
   photoUrl: string | null;
   result: "correct" | "wrong" | null;
   lockedOutClassName: string | null;
+  /** Null once buzzing is open; otherwise the moment it opens — see src/actions/buzzer.ts. */
+  opensAt: string | null;
   tally: TvTally[];
 }
 
 /** A passive, unauthenticated screen: no student or admin session, nothing to click. */
 export function BuzzerBoard({
-  rev, questionNumber, questionText, choices, correctIndex, buzzedStudentId, buzzedStudentName, className, classColor, photoUrl, result, lockedOutClassName, tally,
+  rev, questionNumber, questionText, choices, correctIndex, buzzedStudentId, buzzedStudentName, className, classColor, photoUrl, result, lockedOutClassName, opensAt, tally,
 }: Props) {
   useLiveReload(rev, 1500);
+  const countdown = useCountdown(opensAt);
 
   return (
     <div className="app-bg min-h-dvh px-10 py-8 text-[var(--ink)]">
@@ -51,6 +55,15 @@ export function BuzzerBoard({
           <div className="card bg-white p-12 text-center">
             <div className="text-6xl">🔔</div>
             <div className="display mt-2 text-4xl">Waiting for the round to start…</div>
+          </div>
+        ) : countdown > 0 ? (
+          <div className="card bg-white p-12 text-center">
+            <div className="label mb-4 text-xl">Question {questionNumber}</div>
+            <div className="pulse-ring mx-auto flex h-44 w-44 items-center justify-center rounded-full border-4 border-ink bg-sun">
+              <span className="display text-8xl leading-none">{countdown}</span>
+            </div>
+            <div className="display mt-5 text-5xl">Get ready…</div>
+            <p className="mt-2 text-xl text-ink-soft">Buzzing opens in a moment — don&rsquo;t jump the gun!</p>
           </div>
         ) : questionText && choices ? (
           <div className="card bg-white p-8">

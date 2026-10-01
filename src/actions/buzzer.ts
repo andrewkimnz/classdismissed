@@ -32,22 +32,30 @@ export async function buzzIn(): Promise<ActionResult<{ won: boolean }>> {
     if (!student) throw new UserError("Couldn't find your account. Reload and sign in again.");
     if (!currentBuzzerSlot(world, student.classId)) throw new UserError("Buzzer isn't your class's current class right now.");
 
-    const [state] = await ctx.sql<{ questionNumber: number; lockedOutClassId: number | null }>`
-      select question_number, locked_out_class_id from buzzer_state where id = 1`;
+    const [state] = await ctx.sql<{ questionNumber: number; lockedOutClassId: number | null; opensAt: Date | null }>`
+      select question_number, locked_out_class_id, opens_at from buzzer_state where id = 1`;
     if (!state || state.questionNumber < 1) throw new UserError("The round hasn't started yet.");
     if (state.lockedOutClassId !== null && state.lockedOutClassId === student.classId) {
       throw new UserError("Your team already had a go on this question — it's the other team's steal.");
+    }
+    if (state.opensAt && state.opensAt.getTime() > Date.now()) {
+      throw new UserError("Hold on — buzzing isn't open yet!");
     }
 
     const claimed = await ctx.sql<{ id: number }>`
       update buzzer_state set buzzed_student_id = ${ctx.studentId}, buzzed_at = now(), result = null
       where id = 1 and question_number = ${state.questionNumber} and buzzed_student_id is null
         and (locked_out_class_id is null or locked_out_class_id <> ${student.classId})
+        and (opens_at is null or opens_at <= now())
       returning id`;
     if (!claimed.length) return { message: "Someone beat you to it!", data: { won: false } };
     return { message: "You buzzed in first!", data: { won: true } };
   });
 }
+
+/** How long buzzing stays closed after "Next question", so a phone that happened to refresh faster
+ * doesn't get an unfair head start — see `opens_at` on buzzer_state. */
+const QUESTION_DELAY_SECONDS = 5;
 
 /** Moves from "start of round" (0) to Q1, then Q2, … A still-unresolved buzz is logged "unanswered" first. */
 export async function nextBuzzerQuestion(): Promise<ActionResult> {
@@ -62,9 +70,12 @@ export async function nextBuzzerQuestion(): Promise<ActionResult> {
         values (${state.questionNumber}, ${state.buzzedStudentId}, ${student?.classId ?? null}, now(), 'unanswered', ${ctx.actor.id}, ${text})`;
     }
     const next = state.questionNumber + 1;
-    await ctx.sql`update buzzer_state set question_number = ${next}, buzzed_student_id = null, buzzed_at = null, result = null, locked_out_class_id = null where id = 1`;
-    await audit(ctx, "buzzer.next", `Buzzer: moved to question ${next}`, { entity: "buzzer_state" });
-    return { message: `Now on question ${next}.` };
+    await ctx.sql`
+      update buzzer_state set question_number = ${next}, buzzed_student_id = null, buzzed_at = null, result = null,
+        locked_out_class_id = null, opens_at = now() + make_interval(secs => ${QUESTION_DELAY_SECONDS})
+      where id = 1`;
+    await audit(ctx, "buzzer.next", `Buzzer: moved to question ${next} (opens in ${QUESTION_DELAY_SECONDS}s)`, { entity: "buzzer_state" });
+    return { message: `Now on question ${next}. Buzzing opens in ${QUESTION_DELAY_SECONDS}s.` };
   });
 }
 

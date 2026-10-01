@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { nextBuzzerQuestion, resetBuzzerRound, resolveBuzz } from "@/actions/buzzer";
 import { ConfirmButton, Panel, useAct } from "@/components/admin/ui";
+import { useCountdown } from "@/components/use-countdown";
 import { useLiveReload } from "@/components/use-live-reload";
 import { Avatar } from "@/components/ui/avatar";
 import { ClassBadge } from "@/components/ui/kit";
@@ -25,6 +26,7 @@ export interface BuzzerDeskState {
   result: "correct" | "wrong" | null;
   lockedOutClassId: number | null;
   lockedOutClassName: string | null;
+  opensAt: string | null;
 }
 
 export interface BuzzerDeskRound {
@@ -40,6 +42,7 @@ export interface BuzzerDeskRound {
 
 export function BuzzerDesk({ rev, state, history, questionCount }: { rev: number; state: BuzzerDeskState; history: BuzzerDeskRound[]; questionCount: number }) {
   useLiveReload(rev, 1500);
+  const countdown = useCountdown(state.opensAt);
   const { act, pending } = useAct();
   const started = state.questionNumber > 0;
 
@@ -83,6 +86,11 @@ export function BuzzerDesk({ rev, state, history, questionCount }: { rev: number
           {state.buzzedStudentId === null && state.lockedOutClassName && (
             <p className="mb-2 rounded-xl border-2 border-dashed border-pen bg-pen/10 px-3 py-2 text-sm font-bold text-pen">
               🔁 Steal's open — {state.lockedOutClassName} got it wrong, so only another team can buzz in now.
+            </p>
+          )}
+          {state.buzzedStudentId === null && countdown > 0 && (
+            <p className="mb-2 rounded-xl border-2 border-dashed border-line bg-paper-2 px-3 py-2 text-sm font-bold text-ink-soft">
+              ⏳ Buzzing opens in {countdown}s — give every phone a chance to catch up.
             </p>
           )}
           {state.buzzedStudentId === null ? (

@@ -26,22 +26,29 @@ export interface BuzzerLive {
   /** Set after a FIRST wrong answer: the team excluded from this question's steal attempt. */
   lockedOutClassId: number | null;
   lockedOutClassName: string | null;
+  /** Null once buzzing is open; otherwise the moment it opens — a fairness delay after "Next question"
+   * so a phone that happened to refresh faster doesn't get a head start (see src/actions/buzzer.ts). */
+  opensAt: Date | null;
 }
 
 const IDLE: BuzzerLive = {
   questionNumber: 0, questionText: null, choices: null, correctIndex: null, buzzedStudentId: null, buzzedStudentName: null,
   classId: null, className: null, classColor: null, photoUrl: null, buzzedAt: null, result: null,
-  lockedOutClassId: null, lockedOutClassName: null,
+  lockedOutClassId: null, lockedOutClassName: null, opensAt: null,
 };
 
-/** Public-safe: student app and TV. The correct answer is redacted until a buzz is resolved. */
+/** Public-safe: student app and TV. The correct answer is redacted until a buzz is resolved, and the
+ * question text/choices themselves are redacted until the fairness delay (`opens_at`) has passed —
+ * no point in opening the countdown early if the TV already shows what's coming. */
 export const getBuzzerLive = cache(async (): Promise<BuzzerLive> => {
   const [row] = await globalSql<BuzzerLive>`
-    select b.question_number, q.question as question_text, q.choices,
+    select b.question_number,
+      case when b.opens_at is null or b.opens_at <= now() then q.question else null end as question_text,
+      case when b.opens_at is null or b.opens_at <= now() then q.choices else null end as choices,
       case when b.result is not null then q.correct_index else null end as correct_index,
       b.buzzed_student_id, s.name as buzzed_student_name, s.class_id, c.name as class_name, c.color as class_color,
       (select p.url from photos p where p.student_id = s.id and p.kind = 'student_id' and p.is_current limit 1) as photo_url,
-      b.buzzed_at, b.result, b.locked_out_class_id, lc.name as locked_out_class_name
+      b.buzzed_at, b.result, b.locked_out_class_id, lc.name as locked_out_class_name, b.opens_at
     from buzzer_state b
     left join students s on s.id = b.buzzed_student_id
     left join classes c on c.id = s.class_id
@@ -54,13 +61,14 @@ export const getBuzzerLive = cache(async (): Promise<BuzzerLive> => {
   return row ?? IDLE;
 });
 
-/** Admin-only: same shape, but the correct answer is always included — an exec needs it before marking, not after. */
+/** Admin-only: same shape, but the correct answer AND the question/choices are always included — an
+ * exec running the round needs to see what's coming before the delay ends, not after. */
 export const getBuzzerAdminLive = cache(async (): Promise<BuzzerLive> => {
   const [row] = await globalSql<BuzzerLive>`
     select b.question_number, q.question as question_text, q.choices, q.correct_index,
       b.buzzed_student_id, s.name as buzzed_student_name, s.class_id, c.name as class_name, c.color as class_color,
       (select p.url from photos p where p.student_id = s.id and p.kind = 'student_id' and p.is_current limit 1) as photo_url,
-      b.buzzed_at, b.result, b.locked_out_class_id, lc.name as locked_out_class_name
+      b.buzzed_at, b.result, b.locked_out_class_id, lc.name as locked_out_class_name, b.opens_at
     from buzzer_state b
     left join students s on s.id = b.buzzed_student_id
     left join classes c on c.id = s.class_id

@@ -24,6 +24,7 @@ export default async function TvBuzzerPage() {
       photoUrl={state.photoUrl}
       result={state.result}
       lockedOutClassName={state.lockedOutClassName}
+      opensAt={state.opensAt?.toISOString() ?? null}
       tally={tally}
     />
   );

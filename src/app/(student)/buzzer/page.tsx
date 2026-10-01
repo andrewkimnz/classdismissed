@@ -40,6 +40,7 @@ export default async function BuzzerPage() {
       myStudentId={student.id}
       lockedOut={state.lockedOutClassId !== null && state.lockedOutClassId === student.classId}
       stealOpen={state.lockedOutClassId !== null}
+      opensAt={state.opensAt?.toISOString() ?? null}
     />
   );
 }
