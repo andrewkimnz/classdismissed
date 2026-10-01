@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { clearBuzz, nextBuzzerQuestion, resetBuzzerRound, resolveBuzz } from "@/actions/buzzer";
+import { nextBuzzerQuestion, resetBuzzerRound, resolveBuzz } from "@/actions/buzzer";
 import { ConfirmButton, Panel, useAct } from "@/components/admin/ui";
 import { useLiveReload } from "@/components/use-live-reload";
 import { Avatar } from "@/components/ui/avatar";
@@ -71,7 +71,11 @@ export function BuzzerDesk({ rev, state, history, questionCount }: { rev: number
           </div>
         )}
 
-        <button className="btn btn-primary btn-lg w-full" disabled={pending} onClick={() => act(() => nextBuzzerQuestion())}>
+        <button
+          className="btn btn-primary btn-lg w-full"
+          disabled={pending || (state.buzzedStudentId !== null && state.result === null)}
+          onClick={() => act(() => nextBuzzerQuestion())}
+        >
           {started ? "Next question ▶" : "Start the round ▶"}
         </button>
 
@@ -101,11 +105,6 @@ export function BuzzerDesk({ rev, state, history, questionCount }: { rev: number
               <button className="btn btn-good" disabled={pending || state.result !== null} onClick={() => act(() => resolveBuzz({ result: "correct" }))}>✔ Correct</button>
               <button className="btn btn-danger" disabled={pending || state.result !== null} onClick={() => act(() => resolveBuzz({ result: "wrong" }))}>✘ Wrong</button>
             </div>
-          )}
-          {state.buzzedStudentId !== null && (
-            <ConfirmButton className="mt-2 w-full" variant="ghost" confirmLabel="Clear the buzz?" disabled={pending} onConfirm={() => act(() => clearBuzz())}>
-              Clear (mis-tap / wrong student)
-            </ConfirmButton>
           )}
         </div>
       </Panel>
