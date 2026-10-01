@@ -12,5 +12,6 @@ export const MIGRATION_FILES = [
   "0010_drop_custom_award.sql",
   "0011_drop_risk_tiers.sql",
   "0012_buzzer_steal.sql",
-  "0013_buzzer_question_delay.sql"
+  "0013_buzzer_question_delay.sql",
+  "0014_kaco_koins.sql"
 ] as const;

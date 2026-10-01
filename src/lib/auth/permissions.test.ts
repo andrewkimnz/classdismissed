@@ -21,8 +21,8 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 describe("game master permissions", () => {
-  it("a game master holds exactly the five During-event permissions; an admin holds everything", () => {
-    assert.deepEqual([...TEACHER_PERMS].sort(), ["buzzer", "detention", "notes", "principal", "score"]);
+  it("a game master holds exactly the six During-event permissions; an admin holds everything", () => {
+    assert.deepEqual([...TEACHER_PERMS].sort(), ["buzzer", "detention", "notes", "principal", "score", "store"]);
     for (const p of ["manage", "checkin"] as const) assert.equal(can(teacher, p), false, `teacher must not have ${p}`);
     for (const p of ROLE_PERMS.admin) assert.equal(can(admin, p), true);
   });
@@ -36,9 +36,9 @@ describe("game master permissions", () => {
 });
 
 describe("staff-room menu", () => {
-  it("has a 'During event' section holding exactly Score entry, Teacher's Notes, Principal's Office, Detention, Buzzer", () => {
+  it("has a 'During event' section holding exactly Score entry, Teacher's Notes, Principal's Office, Detention, Buzzer, Store", () => {
     const items = ADMIN_NAV.filter((i) => i.group === DURING_EVENT).map((i) => i.href);
-    assert.deepEqual(items, ["/admin/scoring", "/admin/notes", "/admin/principal", "/admin/detention", "/admin/buzzer"]);
+    assert.deepEqual(items, ["/admin/scoring", "/admin/notes", "/admin/principal", "/admin/detention", "/admin/buzzer", "/admin/store"]);
     assert.deepEqual(items, DURING_EVENT_HREFS);
     // and those four are no longer under "Run the night"
     assert.deepEqual(ADMIN_NAV.filter((i) => i.group === "Run the night").map((i) => i.href), ["/admin", "/admin/checkin"]);
@@ -77,7 +77,7 @@ describe("server-side enforcement (not just a hidden menu)", () => {
   });
 
   it("game-master permissions are only used by the During-event action files", () => {
-    const allowed: Record<string, string> = { score: "scoring.ts", notes: "notes.ts", principal: "principal.ts", detention: "detention.ts", buzzer: "buzzer.ts" };
+    const allowed: Record<string, string> = { score: "scoring.ts", notes: "notes.ts", principal: "principal.ts", detention: "detention.ts", buzzer: "buzzer.ts", store: "koins.ts" };
     for (const f of fs.readdirSync(path.join(root, "src/actions")).filter((x) => x.endsWith(".ts"))) {
       for (const m of read(`src/actions/${f}`).matchAll(/run\("(\w+)"/g)) {
         const perm = m[1];
@@ -99,7 +99,7 @@ describe("server-side enforcement (not just a hidden menu)", () => {
         if (name && perm) perms.set(name, perm);
       }
     }
-    for (const desk of ["scoring-desk", "notes-desk", "principal-desk", "detention-desk", "buzzer-desk"]) {
+    for (const desk of ["scoring-desk", "notes-desk", "principal-desk", "detention-desk", "buzzer-desk", "store-desk"]) {
       const src = read(`src/components/admin/${desk}.tsx`);
       const imported = [...src.matchAll(/import \{([^}]+)\} from "@\/actions\/\w+"/g)].flatMap((m) => m[1].split(",").map((n) => n.trim()).filter(Boolean));
       assert.ok(imported.length > 0, `${desk} should import actions`);

@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { audit, parse, run, UserError, type ActionResult } from "@/lib/actions";
 import { phaseLabel } from "@/lib/domain/phases";
+import { grantAllKoinStartingBalances, KOIN_STARTING_BALANCE } from "@/lib/koins";
 import { resetBuzzerSession, resetEventData, resetMathChallenges } from "@/lib/reset";
 
 const phaseSchema = z.enum(["school_day", "after_school", "event_complete"]);
@@ -14,10 +15,17 @@ export async function setPhase(input: { phase: string }): Promise<ActionResult> 
     const [before] = await ctx.sql<{ phase: string }>`select phase from events where id = 1`;
     if (before.phase === phase) throw new UserError(`The event is already in ${phaseLabel(phase)}.`);
     await ctx.sql`update events set phase = ${phase}, phase_changed_at = now() where id = 1`;
-    await audit(ctx, "event.phase", `Phase changed: ${phaseLabel(before.phase as never)} → ${phaseLabel(phase)}`, {
+    // Phase 2 (After School) is when Kaco Koins start: every member gets their starting balance
+    // the moment the event moves into it — safe to re-run if the exec flips back and forth.
+    let extra = "";
+    if (phase === "after_school") {
+      const granted = await grantAllKoinStartingBalances(ctx.sql);
+      if (granted) extra = ` ${granted} member${granted === 1 ? "" : "s"} granted their ${KOIN_STARTING_BALANCE} Kaco Koin starting balance.`;
+    }
+    await audit(ctx, "event.phase", `Phase changed: ${phaseLabel(before.phase as never)} → ${phaseLabel(phase)}${extra}`, {
       entity: "event", entityId: 1, data: { from: before.phase, to: phase },
     });
-    return { message: `Event is now in ${phaseLabel(phase)}. Student phones are updating.` };
+    return { message: `Event is now in ${phaseLabel(phase)}. Student phones are updating.${extra}` };
   });
 }
 

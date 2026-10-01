@@ -4,14 +4,14 @@ import type { AdminRole } from "@/lib/types";
  * Who can do what in the staff room. Pure (no framework imports) so it can be tested and shared.
  *
  *  admin   → everything.
- *  teacher → "game master": ONLY the five "During event" tools (score entry, Teacher's Notes,
- *            Principal's Office, Detention, Buzzer). Nothing else in the staff room.
+ *  teacher → "game master": ONLY the six "During event" tools (score entry, Teacher's Notes,
+ *            Principal's Office, Detention, Buzzer, Store). Nothing else in the staff room.
  */
-export type Perm = "score" | "notes" | "principal" | "detention" | "buzzer" | "checkin" | "manage";
+export type Perm = "score" | "notes" | "principal" | "detention" | "buzzer" | "store" | "checkin" | "manage";
 
 export const ROLE_PERMS: Record<AdminRole, readonly Perm[]> = {
-  admin: ["score", "notes", "principal", "detention", "buzzer", "checkin", "manage"],
-  teacher: ["score", "notes", "principal", "detention", "buzzer"],
+  admin: ["score", "notes", "principal", "detention", "buzzer", "store", "checkin", "manage"],
+  teacher: ["score", "notes", "principal", "detention", "buzzer", "store"],
 };
 
 export const can = (admin: { role: AdminRole }, perm: Perm) => ROLE_PERMS[admin.role].includes(perm);
@@ -23,6 +23,7 @@ export const DURING_EVENT_PAGES: readonly { href: string; perm: Perm }[] = [
   { href: "/admin/principal", perm: "principal" },
   { href: "/admin/detention", perm: "detention" },
   { href: "/admin/buzzer", perm: "buzzer" },
+  { href: "/admin/store", perm: "store" },
 ];
 
 /** Where this person lands after signing in, or when they open a page they can't use. */

@@ -114,6 +114,16 @@ const CLUBS = [
     description: "Step into character and work with your group to recreate a movie scene." },
 ];
 
+// Phase 2 Kaco Koins storefront — fixed catalogue, same every reseed.
+const PRODUCTS: { name: string; price: number; stock: number }[] = [
+  { name: "Choco Pie", price: 10, stock: 60 },
+  { name: "Cheese Breadstick", price: 15, stock: 20 },
+  { name: "Koala's March Cookies", price: 15, stock: 20 },
+  { name: "Shapes", price: 20, stock: 15 },
+  { name: "Vita Lemon Tea", price: 20, stock: 24 },
+  { name: "Sour Strawberry/Grape Candy", price: 25, stock: 6 },
+];
+
 const BOUNDARIES: [string, number][] = [
   ["A+", 90], ["A", 85], ["A-", 80], ["B+", 75], ["B", 70], ["B-", 65],
   ["C+", 60], ["C", 55], ["C-", 50], ["D", 40], ["F", 0],
@@ -134,7 +144,7 @@ export async function seed(conn: Db, opts: { profile: SeedProfile; demoAdmin?: b
     // ── wipe (accounts survive) ──────────────────────────────────────────
     await sql`truncate table audit_log, photos, detentions, grade_modifications, principal_attempts,
       teacher_notes, club_completions, clubs, grade_boundaries, class_subject_scores, rotations, periods,
-      subjects, students, classes restart identity cascade`;
+      subjects, students, classes, koin_products restart identity cascade`;
     await sql`delete from events`;
     await sql`insert into events (id, event_date, timezone, phase, current_period)
       values (1, ${EVENT_DATE}::date, ${TZ}, ${profile === "demo" ? "after_school" : "school_day"}, ${profile === "demo" ? 5 : 0})`;
@@ -181,6 +191,9 @@ export async function seed(conn: Db, opts: { profile: SeedProfile; demoAdmin?: b
         values (${c.name}, ${c.icon}, ${c.color}, ${c.description}, ${c.room}, ${c.open}, ${c.awards}, ${i})
         returning id`;
       clubIds.push(row.id);
+    }
+    for (const [i, p] of PRODUCTS.entries()) {
+      await sql`insert into koin_products (name, price, stock, initial_stock, sort_order) values (${p.name}, ${p.price}, ${p.stock}, ${p.stock}, ${i})`;
     }
     if (profile === "blank") return;
 
@@ -241,7 +254,13 @@ export async function seed(conn: Db, opts: { profile: SeedProfile; demoAdmin?: b
       "2-C": ["PE Club", "Language Club", "Puzzle Club"],
       "2-D": ["Art Club", "PE Club", "Puzzle Club", "Debate Club", "Language Club", "Photography Club"],
     };
+
+    // Kaco Koins: every member starts Phase 2 with 15, then +5 per club their class has completed.
+    for (const sid of studentIds.values()) {
+      await sql`insert into koin_transactions (student_id, delta, description, kind) values (${sid}, 15, 'Phase 2 Starting Balance', 'starting_balance')`;
+    }
     for (const [cls, clubs] of Object.entries(completed)) {
+      const classStudentIds = ROSTER[CLASSES.findIndex((c) => c.name === cls)].map((name) => studentIds.get(name)!);
       for (const clubName of clubs) {
         const club = CLUBS.find((c) => c.name === clubName)!;
         const [comp] = await sql<{ id: number }>`
@@ -249,9 +268,19 @@ export async function seed(conn: Db, opts: { profile: SeedProfile; demoAdmin?: b
         if (club.awards) {
           await sql`insert into teacher_notes (class_id, club_id, completion_id) values (${classNo(cls)}, ${clubNo(clubName)}, ${comp.id})`;
         }
+        for (const sid of classStudentIds) {
+          await sql`insert into koin_transactions (student_id, delta, description, kind, completion_id)
+            values (${sid}, 5, ${`${clubName} Completed`}, 'club_completion', ${comp.id})`;
+        }
       }
     }
     await sql`insert into teacher_notes (class_id, reason) values (${classNo("2-B")}, 'Helped set up the yearbook wall')`;
+
+    // A sample purchase, so the demo Wallet/Store aren't empty.
+    const [vitaLemonTea] = await sql<{ id: number }>`select id from koin_products where name = 'Vita Lemon Tea'`;
+    await sql`insert into koin_transactions (student_id, delta, description, kind, product_id)
+      values (${studentIds.get("Andrew Kim")!}, -20, 'Vita Lemon Tea', 'purchase', ${vitaLemonTea.id})`;
+    await sql`update koin_products set stock = stock - 1 where id = ${vitaLemonTea.id}`;
 
     /** One Principal's Office attempt by a whole class. A caught result sends everyone who is here. */
     async function attempt(cls: string, outcome: "success" | "failure", notes = "") {

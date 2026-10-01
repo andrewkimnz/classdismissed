@@ -23,6 +23,7 @@ export interface ResetCounts {
   checkedIn: number;
   mathChallenges: number;
   buzzerRounds: number;
+  koinTransactions: number;
 }
 
 export async function countEventActivity(sql: Sql): Promise<ResetCounts> {
@@ -36,7 +37,8 @@ export async function countEventActivity(sql: Sql): Promise<ResetCounts> {
       (select count(*)::int from detentions) as detentions,
       (select count(*)::int from students where attendance <> 'expected') as checked_in,
       (select count(*)::int from math_challenges) as math_challenges,
-      (select count(*)::int from buzzer_rounds) as buzzer_rounds`;
+      (select count(*)::int from buzzer_rounds) as buzzer_rounds,
+      (select count(*)::int from koin_transactions) as koin_transactions`;
   return r;
 }
 
@@ -62,9 +64,11 @@ export async function resetEventData(sql: Sql): Promise<ResetCounts> {
   await sql`delete from detentions`;
   await sql`delete from grade_modifications`;
   await sql`delete from principal_attempts`;
+  await sql`delete from koin_transactions`; // before club_completions — koin_transactions.completion_id references it
   await sql`delete from teacher_notes`;
   await sql`delete from club_completions`;
   await sql`delete from class_subject_scores`;
+  await sql`update koin_products set stock = initial_stock`;
   await sql`update students set attendance = 'expected', checked_in_at = null`;
   await sql`update events set phase = 'school_day', phase_changed_at = now(), current_period = 0, scoring_locked = false where id = 1`;
   return counts;

@@ -1,6 +1,6 @@
 "use client";
 
-import { Calculator, Flower2, House, IdCard, Trophy, Users, Zap } from "lucide-react";
+import { Calculator, Flower2, House, IdCard, Trophy, Users, Wallet, Zap } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
@@ -17,6 +17,7 @@ const NAV: Record<Phase, { href: string; label: string; icon: typeof House; big?
   after_school: [
     { href: "/", label: "Home", icon: House },
     { href: "/clubs", label: "Clubs", icon: Flower2, big: true },
+    { href: "/wallet", label: "Wallet", icon: Wallet },
     { href: "/class", label: "Class", icon: Users },
     { href: "/profile", label: "Profile", icon: IdCard },
   ],

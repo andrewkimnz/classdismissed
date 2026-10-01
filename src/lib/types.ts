@@ -209,6 +209,31 @@ export interface DetentionRow {
   releasedAt: Date | null;
 }
 
+export interface KoinProductRow {
+  id: number;
+  name: string;
+  price: number;
+  stock: number;
+  initialStock: number;
+  sortOrder: number;
+}
+
+export type KoinTransactionKind = "starting_balance" | "club_completion" | "purchase";
+
+/** One ledger entry. Balances are always the sum of a student's non-revoked rows — never stored. */
+export interface KoinTransactionRow {
+  id: number;
+  studentId: number;
+  delta: number;
+  description: string;
+  kind: KoinTransactionKind;
+  completionId: number | null;
+  productId: number | null;
+  createdBy: number | null;
+  createdAt: Date;
+  revokedAt: Date | null;
+}
+
 export interface AuditRow {
   id: number;
   at: Date;
@@ -237,4 +262,6 @@ export interface World {
   attempts: AttemptRow[]; // every status
   mods: ModificationRow[]; // active only
   detentions: DetentionRow[]; // every status
+  koinProducts: KoinProductRow[];
+  koinTransactions: KoinTransactionRow[]; // active only
 }

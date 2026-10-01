@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { loadWorld } from "@/lib/data/load-world";
 import { computeStandings } from "@/lib/domain/grades";
+import { koinBalance, koinHistory } from "@/lib/domain/koins";
 import { noteBalance, notesToSpend, principalAccess, RECKLESS } from "@/lib/domain/principal";
 import { computeFinalStats, computeStudentStats } from "@/lib/domain/stats";
 import { timetableIssues } from "@/lib/domain/timetable";
@@ -48,6 +49,23 @@ describe("schema + demo seed (in-memory Postgres)", () => {
   });
 
   it("generates a collision-free timetable", () => assert.deepEqual(timetableIssues(w), []));
+
+  it("Kaco Koins: Andrew Kim's balance is the ledger — 15 starting + 7 clubs × 5 (2-B) − 20 (Vita Lemon Tea)", () => {
+    const andrew = w.students.find((s) => s.name === "Andrew Kim")!;
+    assert.equal(koinBalance(w, andrew.id), 30);
+    const history = koinHistory(w, andrew.id);
+    assert.equal(history.length, 9); // 1 starting + 7 club completions + 1 purchase
+    assert.deepEqual([history[0].description, history[0].delta], ["Vita Lemon Tea", -20], "most recent first");
+    assert.ok(history.every((t) => t.revokedAt === null), "World only carries active transactions");
+  });
+
+  it("Kaco Koins: the storefront has its 6 items with live stock", () => {
+    assert.equal(w.koinProducts.length, 6);
+    const lemonTea = w.koinProducts.find((p) => p.name === "Vita Lemon Tea")!;
+    assert.equal(lemonTea.price, 20);
+    assert.equal(lemonTea.initialStock, 24);
+    assert.equal(lemonTea.stock, 23, "the demo seed's sample purchase already took one");
+  });
 
   it("spends Teacher's Notes on attempts: 2-B collected 7, made 2 attempts (3 each), so only 1 is left", () => {
     const b = noteBalance(w, cls("2-B").id);
@@ -250,18 +268,30 @@ describe("start the event fresh", () => {
              (select count(*)::int from periods) as periods, (select count(*)::int from rotations) as rotations,
              (select count(*)::int from grade_boundaries) as boundaries,
              (select count(*)::int from photos where is_current) as photos, (select count(*)::int from admins) as admins,
-             (select count(distinct login_code)::int from students) as codes`)[0];
+             (select count(distinct login_code)::int from students) as codes,
+             (select count(*)::int from koin_products) as koin_products`)[0];
     const kept = await setup();
     const [names0] = await c.sql<{ n: string }>`select string_agg(name, ',' order by id) as n from classes`;
     const [stuNames0] = await c.sql<{ n: string }>`select string_agg(name || student_no || class_id, ',' order by id) as n from students`;
 
+    const [lemonTeaBefore] = await c.sql<{ stock: number; initialStock: number }>`select stock, initial_stock from koin_products where name = 'Vita Lemon Tea'`;
+    assert.ok(lemonTeaBefore.stock < lemonTeaBefore.initialStock, "the demo seed's sample purchase has already dented the stock");
+
     const before = await countEventActivity(c.sql);
-    assert.ok(before.scores > 0 && before.notes > 0 && before.attempts > 0 && before.detentions > 0 && before.checkedIn > 0 && before.mathChallenges > 0 && before.buzzerRounds > 0, "there is something to clear");
+    assert.ok(
+      before.scores > 0 && before.notes > 0 && before.attempts > 0 && before.detentions > 0 && before.checkedIn > 0 &&
+        before.mathChallenges > 0 && before.buzzerRounds > 0 && before.koinTransactions > 0,
+      "there is something to clear",
+    );
     const cleared = await c.tx((sql) => resetEventData(sql));
     assert.deepEqual(cleared, before, "reports exactly what it cleared");
 
     // everything that happened is gone…
-    assert.deepEqual(await countEventActivity(c.sql), { scores: 0, notes: 0, clubCompletions: 0, attempts: 0, gradeChanges: 0, detentions: 0, checkedIn: 0, mathChallenges: 0, buzzerRounds: 0 });
+    assert.deepEqual(await countEventActivity(c.sql), {
+      scores: 0, notes: 0, clubCompletions: 0, attempts: 0, gradeChanges: 0, detentions: 0, checkedIn: 0, mathChallenges: 0, buzzerRounds: 0, koinTransactions: 0,
+    });
+    const [lemonTeaAfter] = await c.sql<{ stock: number; initialStock: number }>`select stock, initial_stock from koin_products where name = 'Vita Lemon Tea'`;
+    assert.equal(lemonTeaAfter.stock, lemonTeaAfter.initialStock, "Store stock is restocked to its starting count");
     const [buzzer] = await c.sql<{ questionNumber: number; buzzedStudentId: number | null }>`select question_number, buzzed_student_id from buzzer_state where id = 1`;
     assert.deepEqual([buzzer.questionNumber, buzzer.buzzedStudentId], [0, null], "the buzzer round is back to the start");
     const [ev] = await c.sql<{ phase: string; currentPeriod: number; scoringLocked: boolean }>`select phase, current_period, scoring_locked from events`;
@@ -427,6 +457,103 @@ describe("addSubjectPoints: a correct Buzzer answer's +1, exactly as resolveBuzz
     const [row] = await c.sql<{ score: number }>`select score from class_subject_scores where class_id = ${klass.id} and subject_id = ${subject.id}`;
     assert.equal(row.score, subject.maxScore, "clamped at the subject's max, never goes over");
 
+    await c.end();
+  });
+});
+
+describe("Kaco Koins: grant/award idempotency and revoke-then-re-award", () => {
+  it("grantKoinStartingBalance never double-grants, even called repeatedly", async () => {
+    const { grantKoinStartingBalance } = await import("@/lib/koins");
+    const c = process.env.TEST_DATABASE_URL ? await connect({ url: process.env.TEST_DATABASE_URL }) : await connect({ url: "", dataDir: null });
+    await migrate(c);
+    await seed(c, { profile: "fresh" }); // no starting balances yet — "fresh" is pre-Phase-2
+    const [stu] = await c.sql<{ id: number }>`select id from students order by id limit 1`;
+
+    for (let i = 0; i < 3; i++) await grantKoinStartingBalance(c.sql, stu.id);
+
+    const rows = await c.sql<{ delta: number }>`select delta from koin_transactions where student_id = ${stu.id} and kind = 'starting_balance'`;
+    assert.equal(rows.length, 1, "only one starting-balance row, no matter how many times it's called");
+    assert.equal(rows[0].delta, 15);
+    await c.end();
+  });
+
+  it("grantAllKoinStartingBalances only tops up students who don't already have one", async () => {
+    const { grantAllKoinStartingBalances } = await import("@/lib/koins");
+    const c = process.env.TEST_DATABASE_URL ? await connect({ url: process.env.TEST_DATABASE_URL }) : await connect({ url: "", dataDir: null });
+    await migrate(c);
+    await seed(c, { profile: "fresh" });
+    const total = (await c.sql<{ n: number }>`select count(*)::int as n from students`)[0].n;
+
+    const first = await grantAllKoinStartingBalances(c.sql);
+    assert.equal(first, total, "every student gets one on the first call");
+    const second = await grantAllKoinStartingBalances(c.sql);
+    assert.equal(second, 0, "a second call (e.g. the exec flips the phase back and forth) grants nobody twice");
+    await c.end();
+  });
+
+  it("revoking a club completion reverses just its own Koins, and re-awarding the same club afterwards pays out again", async () => {
+    const { grantClubCompletionKoins, revokeClubCompletionKoins } = await import("@/lib/koins");
+    const c = process.env.TEST_DATABASE_URL ? await connect({ url: process.env.TEST_DATABASE_URL }) : await connect({ url: "", dataDir: null });
+    await migrate(c);
+    await seed(c, { profile: "fresh" });
+    const [klass] = await c.sql<{ id: number }>`select id from classes order by id limit 1`;
+    const [club] = await c.sql<{ id: number; name: string }>`select id, name from clubs order by id limit 1`;
+    const studentIds = (await c.sql<{ id: number }>`select id from students where class_id = ${klass.id}`).map((r) => r.id);
+    assert.ok(studentIds.length > 0);
+
+    const balanceOf = async (id: number) => (await c.sql<{ balance: number }>`
+      select coalesce(sum(delta), 0)::int as balance from koin_transactions where student_id = ${id} and revoked_at is null`)[0].balance;
+
+    const [firstCompletion] = await c.sql<{ id: number }>`insert into club_completions (class_id, club_id) values (${klass.id}, ${club.id}) returning id`;
+    await grantClubCompletionKoins(c.sql, { classId: klass.id, completionId: firstCompletion.id, clubName: club.name });
+    for (const id of studentIds) assert.equal(await balanceOf(id), 5, "each member of the class got +5");
+
+    // A second award attempt for the SAME completion (e.g. a retry) must not pay out twice.
+    await grantClubCompletionKoins(c.sql, { classId: klass.id, completionId: firstCompletion.id, clubName: club.name });
+    for (const id of studentIds) assert.equal(await balanceOf(id), 5, "still +5 — the retry was a no-op");
+
+    // Mirrors what the real revokeCompletion action does: the completion itself is revoked too,
+    // which is what frees up club_completions' own (class_id, club_id) uniqueness for a re-award.
+    await c.sql`update club_completions set revoked_at = now() where id = ${firstCompletion.id}`;
+    await revokeClubCompletionKoins(c.sql, firstCompletion.id);
+    for (const id of studentIds) assert.equal(await balanceOf(id), 0, "revoking the completion reverses its Koins");
+
+    // Re-completing the SAME club later gets its own completion row, so it can earn the Koins again.
+    const [secondCompletion] = await c.sql<{ id: number }>`insert into club_completions (class_id, club_id) values (${klass.id}, ${club.id}) returning id`;
+    await grantClubCompletionKoins(c.sql, { classId: klass.id, completionId: secondCompletion.id, clubName: club.name });
+    for (const id of studentIds) assert.equal(await balanceOf(id), 5, "a fresh completion earns the Koins again");
+
+    await c.end();
+  });
+});
+
+describe("Store purchase: stock never goes negative, even under real concurrency", { skip: !process.env.TEST_DATABASE_URL }, () => {
+  it("10 execs try to buy the same item at once when only 1 is left: exactly one succeeds", async () => {
+    const c = await connect({ url: process.env.TEST_DATABASE_URL });
+    await migrate(c);
+    await seed(c, { profile: "fresh" });
+    const [product] = await c.sql<{ id: number }>`select id from koin_products order by id limit 1`;
+    await c.sql`update koin_products set stock = 1 where id = ${product.id}`;
+
+    // Each attempt is its own connection, exactly like 10 different staff phones — not 10 queries
+    // serialized on one connection, which would prove nothing about the race.
+    const attempts = await Promise.all(
+      Array.from({ length: 10 }, async () => {
+        const own = await connect({ url: process.env.TEST_DATABASE_URL });
+        try {
+          const claimed = await own.sql<{ stock: number }>`
+            update koin_products set stock = stock - 1 where id = ${product.id} and stock > 0 returning stock`;
+          return claimed.length === 1;
+        } finally {
+          await own.end();
+        }
+      }),
+    );
+
+    const winners = attempts.filter(Boolean);
+    assert.equal(winners.length, 1, `expected exactly 1 winner, got ${winners.length}`);
+    const [row] = await c.sql<{ stock: number }>`select stock from koin_products where id = ${product.id}`;
+    assert.equal(row.stock, 0, "stock lands at exactly 0, never negative");
     await c.end();
   });
 });

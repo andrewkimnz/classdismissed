@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { audit, parse, run, UserError, type ActionResult } from "@/lib/actions";
 import { isUniqueViolation } from "@/lib/db/sql";
+import { grantClubCompletionKoins, KOIN_CLUB_REWARD, revokeClubCompletionKoins } from "@/lib/koins";
 
 const id = z.number().int().positive();
 
@@ -31,6 +32,7 @@ export async function awardClub(input: { classIds: number[]; clubId: number }): 
         if (club.awardsNote) {
           await ctx.sql`insert into teacher_notes (class_id, club_id, completion_id, issued_by) values (${classId}, ${v.clubId}, ${comp.id}, ${ctx.actor.id})`;
         }
+        await grantClubCompletionKoins(ctx.sql, { classId, completionId: comp.id, clubName: club.name });
         await ctx.sql`release savepoint award`;
         awarded.push(label);
       } catch (e) {
@@ -47,7 +49,7 @@ export async function awardClub(input: { classIds: number[]; clubId: number }): 
     if (!awarded.length) throw new UserError(`${already.join(", ")} already ${already.length === 1 ? "has" : "have"} ${club.name} done. Nothing was added twice.`);
     const what = club.awardsNote ? "Teacher's Note" : "completion";
     return {
-      message: `${what} for ${awarded.join(", ")} (${club.name}).${already.length ? ` Already done: ${already.join(", ")}.` : ""}`,
+      message: `${what} for ${awarded.join(", ")} (${club.name}). +${KOIN_CLUB_REWARD} Kaco Koins each.${already.length ? ` Already done: ${already.join(", ")}.` : ""}`,
       data: { awarded, already },
     };
   });
@@ -75,8 +77,9 @@ export async function revokeCompletion(input: { completionId: number; reason?: s
     if (!rows.length) throw new UserError("That was already revoked.");
     await ctx.sql`update teacher_notes set revoked_at = now(), revoked_by = ${ctx.actor.id}, revoke_reason = ${v.reason ?? "Completion revoked"}
       where completion_id = ${v.completionId} and revoked_at is null`;
+    await revokeClubCompletionKoins(ctx.sql, v.completionId);
     await audit(ctx, "club.revoke", "Club completion revoked", { entity: "class", entityId: rows[0].classId, data: v });
-    return { message: "Revoked. The class's notes have been updated." };
+    return { message: "Revoked. The class's notes and Kaco Koins have been updated." };
   });
 }
 

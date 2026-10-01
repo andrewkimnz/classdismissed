@@ -21,7 +21,7 @@ describe("Buzzer round: eligibility", () => {
     };
     return {
       event, classes: [klass], students: [], subjects: [social, history], periods: [period(1), period(2)], rotations,
-      scores: [], boundaries: [], clubs: [], completions: [], notes: [], attempts: [], mods: [], detentions: [],
+      scores: [], boundaries: [], clubs: [], completions: [], notes: [], attempts: [], mods: [], detentions: [], koinProducts: [], koinTransactions: [],
     };
   }
 
