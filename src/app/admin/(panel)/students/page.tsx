@@ -26,6 +26,7 @@ export default async function StudentsPage() {
       <PageHeader title="Students" hint={`${w.students.length} enrolled at KAC Academy`} actions={<>
         {manage && <Link href="/admin/students/import" className={btnClass("plain", "sm")}>Import list</Link>}
         <Link href="/admin/students/cards" className={btnClass("sun", "sm")}>🖨 Print login cards</Link>
+        <Link href="/admin/students/id-cards" className={btnClass("plain", "sm")}>🪪 ID card images</Link>
       </>} />
       <StudentsList rows={rows} classes={w.classes.map((c) => ({ id: c.id, name: c.name }))} canManage={manage} />
     </>
