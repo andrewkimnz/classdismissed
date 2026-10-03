@@ -11,15 +11,18 @@ export interface IdCardItem {
 
 const PIXEL_RATIO = 3;
 
+// Exports are transparent outside the card, and leave out the animated shine overlay.
+const skipShine = (node: Node) => !(node instanceof HTMLElement && node.classList.contains("shine"));
+
 let warmed = false;
 
 async function render(el: HTMLElement): Promise<Blob> {
   // The very first capture can miss fonts that haven't been inlined yet, so throw one away.
   if (!warmed) {
-    await toBlob(el, { pixelRatio: 1, cacheBust: false });
+    await toBlob(el, { pixelRatio: 1, cacheBust: false, filter: skipShine });
     warmed = true;
   }
-  const blob = await toBlob(el, { pixelRatio: PIXEL_RATIO, cacheBust: false });
+  const blob = await toBlob(el, { pixelRatio: PIXEL_RATIO, cacheBust: false, filter: skipShine });
   if (!blob) throw new Error("Couldn't render the card.");
   return blob;
 }
@@ -88,7 +91,7 @@ export function IdCardGallery({ items, zipName }: { items: IdCardItem[]; zipName
         {items.map((item) => (
           <div key={item.id} className="w-[440px] max-w-full space-y-2">
             {/* padded so the lanyard slot that overhangs the card isn't clipped in the image */}
-            <div ref={(el) => { if (el) refs.current.set(item.id, el); else refs.current.delete(item.id); }} className="w-[440px] bg-paper px-5 pb-5 pt-6">
+            <div ref={(el) => { if (el) refs.current.set(item.id, el); else refs.current.delete(item.id); }} className="w-[440px] px-5 pb-5 pt-6">
               {item.node}
             </div>
             <button className="btn btn-ghost btn-sm w-full" disabled={working} onClick={() => one(item)}>
